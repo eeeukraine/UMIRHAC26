@@ -1,0 +1,409 @@
+/* ===== ОБЩИЕ СТИЛИ СТРАНИЦЫ ===== */
+.page-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e0e7ff 100%);
+}
+
+.supply-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.page-wrapper {
+  max-width: 1600px; /* Немного расширил для 4-х колонок */
+  margin: 0 auto;
+}
+
+/* ===== ЗАГОЛОВОК ===== */
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.page-title svg {
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-right: 1rem;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.page-subtitle {
+  margin-top: 0.5rem;
+  color: #64748b;
+  font-size: 1.05rem;
+}
+
+.last-update {
+  font-weight: 500;
+  color: #3b82f6;
+}
+
+/* ===== СТАТИСТИКА (КЛИКАБЕЛЬНАЯ) ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 1200px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
+
+.stat-card {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+  border: 2px solid rgba(226, 232, 240, 0.8);
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.12), 0 8px 16px -4px rgba(0, 0, 0, 0.08);
+}
+
+/* Активное состояние карточки статистики */
+.stat-card.active {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15), 0 20px 50px -12px rgba(0, 0, 0, 0.12);
+  background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+}
+
+.stat-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-icon svg {
+  width: 1.75rem;
+  height: 1.75rem;
+  color: white;
+}
+
+.stat-icon-blue { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+.stat-icon-red { background: linear-gradient(135deg, #ef4444, #f43f5e); }
+.stat-icon-amber { background: linear-gradient(135deg, #f59e0b, #f97316); }
+.stat-icon-purple { background: linear-gradient(135deg, #8b5cf6, #a855f7); }
+
+.stat-content { flex: 1; }
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+}
+
+/* ===== ДИНАМИЧЕСКАЯ СЕТКА СПИСКОВ ===== */
+.dynamic-lists-grid {
+  display: grid;
+  gap: 1.5rem;
+  /* grid-template-columns устанавливается через inline-style в React в зависимости от activeCount */
+  transition: grid-template-columns 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== КАРТОЧКИ СПИСКОВ ===== */
+.card {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 50%, #faf5ff 100%);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.card-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+}
+
+.card-header-red::before { background: linear-gradient(90deg, #ef4444, #f43f5e, #ec4899); }
+.card-header-amber::before { background: linear-gradient(90deg, #f59e0b, #f97316, #ef4444); }
+.card-header-purple::before { background: linear-gradient(90deg, #8b5cf6, #a855f7, #ec4899); }
+
+.card-header h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.card-header h2 svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.625rem;
+  color: #3b82f6;
+}
+
+.card-header-red h2 svg { color: #ef4444; }
+.card-header-amber h2 svg { color: #f59e0b; }
+.card-header-purple h2 svg { color: #8b5cf6; }
+
+.card-body {
+  padding: 1.5rem;
+  flex: 1;
+}
+
+/* Прокрутка внутри карточки, если список длинный */
+.scrollable-body {
+  overflow-y: auto;
+  max-height: 500px;
+}
+
+.scrollable-body::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollable-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollable-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.scrollable-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ===== СПИСОК ОСТАТКОВ ===== */
+.inventory-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.inventory-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  border: 2px solid #e2e8f0;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  transition: all 0.3s;
+}
+
+.inventory-item:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+.inventory-item.status-ok { border-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+.inventory-item.status-low { border-color: #f59e0b; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); }
+.inventory-item.status-critical { border-color: #ef4444; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); }
+
+.inventory-info { flex: 1; }
+.inventory-name { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin-bottom: 0.25rem; }
+.inventory-details { display: flex; gap: 1rem; font-size: 0.825rem; color: #64748b; flex-wrap: wrap; }
+.inventory-quantity { font-weight: 600; color: #0f172a; }
+.inventory-min { color: #94a3b8; }
+.inventory-expiration { color: #64748b; }
+
+.inventory-status {
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-ok .inventory-status { background: #d1fae5; color: #047857; }
+.status-low .inventory-status { background: #fef3c7; color: #b45309; }
+.status-critical .inventory-status { background: #fee2e2; color: #991b1b; }
+
+/* ===== СПИСОК ПОСТАВОК ===== */
+.deliveries-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.delivery-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  border: 2px solid #e2e8f0;
+  background: #ffffff;
+  transition: all 0.3s;
+}
+
+.delivery-item:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+.delivery-item.priority-critical { border-color: #ef4444; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); }
+.delivery-item.priority-high { border-color: #f97316; background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); }
+.delivery-item.priority-medium { border-color: #f59e0b; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); }
+.delivery-item.priority-low { border-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+
+.delivery-info { flex: 1; }
+.delivery-product { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin-bottom: 0.25rem; }
+.delivery-quantity { font-size: 0.825rem; color: #64748b; font-weight: 500; }
+
+.delivery-priority {
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.priority-critical .delivery-priority { background: #fee2e2; color: #991b1b; }
+.priority-high .delivery-priority { background: #ffedd5; color: #c2410c; }
+.priority-medium .delivery-priority { background: #fef3c7; color: #b45309; }
+.priority-low .delivery-priority { background: #d1fae5; color: #047857; }
+
+/* ===== СПИСОК ИСТЕКАЮЩИХ ===== */
+.expiring-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.expiring-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  border: 2px solid #fed7aa;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  transition: all 0.3s;
+}
+
+.expiring-item:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(249, 115, 22, 0.1); }
+
+.expiring-info { flex: 1; }
+.expiring-name { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin-bottom: 0.25rem; }
+.expiring-date { font-size: 0.825rem; color: #64748b; }
+
+.expiring-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: white;
+}
+.expiring-badge.critical { background: #ef4444; }
+.expiring-badge.warning { background: #f59e0b; }
+
+/* ===== СПИСОК РЕЦЕПТОВ ===== */
+.recipes-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.recipe-item {
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 2px solid #e9d5ff;
+  transition: all 0.3s;
+}
+
+.recipe-item:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1); }
+
+.recipe-name { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem; }
+.recipe-missing { font-size: 0.825rem; color: #64748b; }
+.missing-label { font-weight: 600; color: #7c3aed; margin-right: 0.5rem; }
+.missing-product { color: #dc2626; font-weight: 600; }
+
+/* ===== ПУСТОЕ СОСТОЯНИЕ ===== */
+.empty-state-small {
+  text-align: center;
+  padding: 2rem 1rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 1rem;
+  border: 2px dashed #cbd5e1;
+}
+
+.empty-state-small svg { width: 3rem; height: 3rem; color: #94a3b8; margin: 0 auto 0.75rem; opacity: 0.6; }
+.empty-state-small p { color: #64748b; font-size: 0.95rem; font-weight: 500; }
+
+.all-closed-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 1.25rem;
+  border: 2px dashed #cbd5e1;
+  color: #64748b;
+}
+
+.all-closed-state svg { width: 4rem; height: 4rem; margin: 0 auto 1rem; opacity: 0.5; }
+.all-closed-state p { font-size: 1.1rem; font-weight: 500; }
+
+/* ===== ЗАГРУЗКА ===== */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 3rem;
+  height: 3rem;
+  border: 4px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-container p { color: #64748b; font-size: 1rem; font-weight: 500; }
+
+/* ===== АДАПТИВНОСТЬ ===== */
+@media (max-width: 768px) {
+  .supply-content { padding: 1rem; }
+  .page-title { font-size: 1.5rem; }
+  .card-body { padding: 1.25rem; }
+  .inventory-details { flex-direction: column; gap: 0.25rem; }
+  
+  /* На мобильных устройствах списки всегда в 1 колонку, даже если открыто несколько */
+  .dynamic-lists-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
