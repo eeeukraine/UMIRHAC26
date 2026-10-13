@@ -1,21 +1,62 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import './bluda.css'
-import {dishesData} from './bludaData.js'
-import Sidebar from "../components/Sidebar.jsx" // Раскомментируйте, если используете общий лейаут
+import Sidebar from "../components/Sidebar.jsx"
+import { fetchDishes, fetchCategories } from './api' // Импортируем наши функции
 
 const Bluda = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Все')
-
-  // Демо-данные блюд и рецептов
   
+  // Новые состояния для данных с бэкенда
+  const [dishes, setDishes] = useState([])
+  const [filterCategories, setFilterCategories] = useState(['Все'])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Получаем уникальные категории для фильтров
-  const categories = ['Все', ...new Set(dishesData.map(dish => dish.category))]
+  // Загружаем данные при первом рендере
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Запрашиваем блюда и категории параллельно
+        const [dishesData, categoriesData] = await Promise.all([
+          fetchDishes(),
+          fetchCategories()
+        ])
+
+        // Преобразуем данные с бэкенда под формат вашего фронтенда
+        const formattedDishes = dishesData.map(dish => {
+          // Находим название категории по её ID
+          const categoryObj = categoriesData.find(c => c.id === dish.categoryId)
+          const categoryName = categoryObj ? categoryObj.name : 'Неизвестно'
+
+          return {
+            ...dish,
+            category: categoryName, // Добавляем строку категории для фильтров
+            prepTime: dish.prepTimeMinutes ? `${dish.prepTimeMinutes} мин` : 'Не указано',
+            calories: dish.calories ? `${dish.calories} ккал` : 'Не указано',
+            // Временно заглушка, пока не сделаем таблицу ингредиентов
+            ingredients: dish.ingredients || ['Данные об ингредиентах скоро будут'] 
+          }
+        })
+
+        setDishes(formattedDishes)
+        
+        // Формируем список категорий для кнопок фильтра ('Все' + уникальные категории из блюд)
+        const uniqueCategories = ['Все', ...new Set(formattedDishes.map(d => d.category))]
+        setFilterCategories(uniqueCategories)
+        
+      } catch (error) {
+        console.error('Ошибка при загрузке данных:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
 
   // Логика фильтрации и сортировки (Горячее всегда сверху!)
   const filteredDishes = useMemo(() => {
-    let result = dishesData
+    let result = dishes
 
     // 1. Фильтрация по категории
     if (selectedCategory !== 'Все') {
@@ -27,7 +68,7 @@ const Bluda = () => {
       const query = searchQuery.toLowerCase()
       result = result.filter(dish => 
         dish.name.toLowerCase().includes(query) || 
-        dish.ingredients.some(ing => ing.toLowerCase().includes(query))
+        (dish.ingredients && dish.ingredients.some(ing => ing.toLowerCase().includes(query)))
       )
     }
 
@@ -37,7 +78,7 @@ const Bluda = () => {
       if (a.category !== 'Горячее' && b.category === 'Горячее') return 1
       return a.name.localeCompare(b.name)
     })
-  }, [searchQuery, selectedCategory])
+  }, [searchQuery, selectedCategory, dishes])
 
   // Функция для получения класса бейджа категории
   const getCategoryBadgeClass = (category) => {
@@ -46,8 +87,22 @@ const Bluda = () => {
       case 'Салаты': return 'badge-salad'
       case 'Десерты': return 'badge-dessert'
       case 'Напитки': return 'badge-drink'
+      case 'Супы': return 'badge-soup' // Добавил для супов
       default: return 'badge-default'
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="page-layout">
+        <Sidebar />
+        <main className="supply-content">
+          <div className="page-wrapper">
+            <h2>Загрузка меню...</h2>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -86,7 +141,7 @@ const Bluda = () => {
             </div>
             
             <div className="category-filters">
-              {categories.map(cat => (
+              {filterCategories.map(cat => (
                 <button
                   key={cat}
                   className={`filter-btn ${selectedCategory === cat ? 'active' : ''}`}

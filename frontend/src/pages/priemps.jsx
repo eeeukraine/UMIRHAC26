@@ -4,12 +4,12 @@ import Sidebar from "../components/Sidebar.jsx";
 
 const SupplyReception = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [inputMode, setInputMode] = useState('excel'); // 'excel' или 'manual'
+  const [inputMode, setInputMode] = useState('manual'); // По умолчанию ручной ввод
   
   const [formData, setFormData] = useState({
     supplierName: '',
     deliveryDate: '',
-    products: [{ name: '', quantity: '', unit: 'шт', expirationDate: '' }],
+    products: [{ name: '', quantity: '', unit: 'кг', expirationDate: '' }],
   });
   
   const [deliveries, setDeliveries] = useState([]);
@@ -18,21 +18,21 @@ const SupplyReception = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
 
-  const loadExistingData = async () => {
+  //  ЗАГРУЗКА ПОСТАВОК С БЭКЕНДА
+  const loadDeliveries = async () => {
     try {
-      // Демо-данные: теперь это история поставок, а не просто продукты
-      setDeliveries([
-        { id: 1, supplier: 'ООО «ФудСервис»', date: '2024-01-15', itemsCount: 12, status: 'Принята' },
-        { id: 2, supplier: 'Мясной двор', date: '2024-01-14', itemsCount: 8, status: 'Принята' },
-        { id: 3, supplier: 'Овощи+', date: '2024-01-13', itemsCount: 15, status: 'Принята' },
-      ]);
+      const response = await fetch('http://localhost:8080/api/deliveries');
+      if (!response.ok) throw new Error('Ошибка загрузки');
+      const data = await response.json();
+      setDeliveries(data);
     } catch (err) {
-      setError('Ошибка загрузки данных');
+      console.error('Ошибка:', err);
+      setError('Не удалось загрузить историю поставок');
     }
   };
 
   useEffect(() => {
-    loadExistingData();
+    loadDeliveries();
   }, []);
 
   const handleInputChange = (e) => {
@@ -49,7 +49,7 @@ const SupplyReception = () => {
   const addProductField = () => {
     setFormData(prev => ({
       ...prev,
-      products: [...prev.products, { name: '', quantity: '', unit: 'шт', expirationDate: '' }],
+      products: [...prev.products, { name: '', quantity: '', unit: 'кг', expirationDate: '' }],
     }));
   };
 
@@ -60,13 +60,7 @@ const SupplyReception = () => {
     }));
   };
 
-  const checkAndUpdateStopList = (newProducts) => {
-    return stopList.filter(stopItem => {
-      const hasNewSupply = newProducts.some(p => p.name.toLowerCase() === stopItem.name.toLowerCase());
-      return !hasNewSupply;
-    });
-  };
-
+  //  ОТПРАВКА ПОСТАВКИ НА БЭКЕНД
   const handleManualSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -83,37 +77,55 @@ const SupplyReception = () => {
         throw new Error('Добавьте хотя бы один продукт');
       }
 
-      const newProducts = validProducts.map(p => ({
-        id: Date.now() + Math.random(),
-        name: p.name,
-        quantity: parseFloat(p.quantity),
-        unit: p.unit,
-        lastUpdated: formData.deliveryDate,
-        expirationDate: p.expirationDate,
-      }));
-
-      // Создаем новую запись поставки
-      const newDelivery = {
-        id: Date.now(),
+      // Формируем запрос в формате бэкенда
+      const deliveryData = {
         supplier: formData.supplierName,
         date: formData.deliveryDate,
-        itemsCount: validProducts.length,
-        status: 'Принята'
+        status: "Принята",
+        items: validProducts.map(p => ({
+          productId: null, // Пока null, потом можно связать с таблицей products
+          name: p.name,
+          quantity: parseFloat(p.quantity),
+          unit: p.unit,
+          expirationDate: p.expirationDate,
+          unitPrice: 0, // Пока 0, потом можно добавить поле цены
+          batchNumber: `BATCH-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`
+        }))
       };
 
-      setDeliveries(prev => [newDelivery, ...prev]);
-      setStopList(checkAndUpdateStopList(newProducts));
+      // Отправляем на бэкенд
+      const response = await fetch('http://localhost:8080/api/deliveries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(deliveryData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Ошибка при создании поставки');
+      }
+
+      await response.json();
+      
       setSuccessMessage('Поставка успешно зарегистрирована!');
       
-      // Сброс формы и закрытие модалки
+      // Перезагружаем список поставок
+      await loadDeliveries();
+      
+      // Сброс формы
       setFormData({
         supplierName: '',
         deliveryDate: '',
-        products: [{ name: '', quantity: '', unit: 'шт', expirationDate: '' }],
+        products: [{ name: '', quantity: '', unit: 'кг', expirationDate: '' }],
       });
       setIsModalOpen(false);
+      
+      // Очищаем сообщение через 3 секунды
+      setTimeout(() => setSuccessMessage(''), 3000);
+      
     } catch (err) {
       setError(err.message || 'Ошибка при регистрации поставки');
+      setTimeout(() => setError(''), 5000);
     } finally {
       setLoading(false);
     }
@@ -123,19 +135,12 @@ const SupplyReception = () => {
     const file = e.target.files[0];
     if (file) {
       setLoading(true);
-      // Имитация обработки Excel файла
+      // Пока заглушка — в будущем можно разобрать Excel и отправить на бэкенд
       setTimeout(() => {
-        const newDelivery = {
-          id: Date.now(),
-          supplier: 'Импорт из Excel',
-          date: new Date().toISOString().split('T')[0],
-          itemsCount: Math.floor(Math.random() * 20) + 5,
-          status: 'Принята'
-        };
-        setDeliveries(prev => [newDelivery, ...prev]);
         setSuccessMessage(`Файл "${file.name}" успешно обработан!`);
         setLoading(false);
         setIsModalOpen(false);
+        setTimeout(() => setSuccessMessage(''), 3000);
       }, 1500);
     }
   };
@@ -158,7 +163,6 @@ const SupplyReception = () => {
 
           <div className="supply-grid">
             <div className="supply-main">
-              {/* Главная карточка с кнопкой действия */}
               <div className="card action-card">
                 <div className="card-body text-center">
                   <div className="action-icon">
@@ -198,7 +202,6 @@ const SupplyReception = () => {
                 </div>
               </div>
 
-              {/* История поставок (вместо последних продуктов) */}
               <div className="card">
                 <div className="card-header card-header-purple">
                   <h3>История поставок</h3>
@@ -209,7 +212,9 @@ const SupplyReception = () => {
                       <div key={delivery.id} className="delivery-item">
                         <div className="delivery-item-header">
                           <span className="delivery-supplier">{delivery.supplier}</span>
-                          <span className="delivery-status">{delivery.status}</span>
+                          <span className={`delivery-status status-${delivery.status === 'Принята' ? 'accepted' : 'pending'}`}>
+                            {delivery.status}
+                          </span>
                         </div>
                         <div className="delivery-item-details">
                           <span>{delivery.date}</span>
@@ -225,7 +230,6 @@ const SupplyReception = () => {
             </div>
           </div>
 
-          {/* Уведомления */}
           {successMessage && (
             <div className="notification success">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -246,7 +250,7 @@ const SupplyReception = () => {
         </div>
       </main>
 
-      {/* Модальное окно */}
+      {/* Модальное окно (без изменений) */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -326,8 +330,8 @@ const SupplyReception = () => {
                       {formData.products.map((product, index) => (
                         <div key={index} className="product-item">
                           <div className="product-grid">
-                            <input type="text" value={product.name} onChange={(e) => handleProductChange(index, 'name', e.target.value)} placeholder="Название" className="product-input" />
-                            <input type="number" value={product.quantity} onChange={(e) => handleProductChange(index, 'quantity', e.target.value)} placeholder="Кол-во" className="product-input" />
+                            <input type="text" value={product.name} onChange={(e) => handleProductChange(index, 'name', e.target.value)} placeholder="Название" className="product-input" required />
+                            <input type="number" step="0.01" value={product.quantity} onChange={(e) => handleProductChange(index, 'quantity', e.target.value)} placeholder="Кол-во" className="product-input" required />
                             <div className="product-actions">
                               <select value={product.unit} onChange={(e) => handleProductChange(index, 'unit', e.target.value)} className="form-select">
                                 <option value="шт">шт</option>
@@ -344,7 +348,7 @@ const SupplyReception = () => {
                               )}
                             </div>
                           </div>
-                          <input type="date" value={product.expirationDate} onChange={(e) => handleProductChange(index, 'expirationDate', e.target.value)} className="product-input" placeholder="Срок годности" />
+                          <input type="date" value={product.expirationDate} onChange={(e) => handleProductChange(index, 'expirationDate', e.target.value)} className="product-input" required />
                         </div>
                       ))}
                     </div>
