@@ -6,7 +6,7 @@ const Fxod = () => {
   const navigate = useNavigate()
   
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
     rememberMe: false,
   })
@@ -21,7 +21,6 @@ const Fxod = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }))
-    // Сбрасываем ошибку при вводе
     if (error) setError('')
   }
 
@@ -31,41 +30,38 @@ const Fxod = () => {
     setLoading(true)
 
     try {
-      // Валидация
-      if (!formData.email || !formData.password) {
+      if (!formData.username || !formData.password) {
         throw new Error('Заполните все поля')
       }
 
-      if (!formData.email.includes('@')) {
-        throw new Error('Введите корректный email')
+      // Реальный запрос к бэкенду
+      const response = await fetch('http://localhost:8080/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Неверный логин или пароль')
       }
 
-      if (formData.password.length < 6) {
-        throw new Error('Пароль должен содержать минимум 6 символов')
+      // Сохраняем токен и данные пользователя
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('username', data.username)
+      
+      if (formData.rememberMe) {
+        localStorage.setItem('rememberedUser', formData.username)
       }
 
-      // ===== ЗАГЛУШКА: имитация запроса к API =====
-      // При подключении бэка заменить на:
-      // const response = await authAPI.login(formData.email, formData.password)
-      // localStorage.setItem('token', response.token)
-      // navigate('/')
+      navigate('/dashboard') // Или на главную страницу
       
-      await new Promise(resolve => setTimeout(resolve, 1200))
-      
-      // Демо-проверка (удалить при подключении бэка)
-      if (formData.email === 'admin@restock.ru' && formData.password === 'admin123') {
-        localStorage.setItem('token', 'demo_token_12345')
-        localStorage.setItem('user', JSON.stringify({
-          name: 'Алексей Иванов',
-          email: formData.email,
-          role: 'admin'
-        }))
-        navigate('/dashboard')
-      } else {
-        throw new Error('Неверный email или пароль')
-      }
     } catch (err) {
-      setError(err.message || 'Ошибка входа')
+      setError(err.message || 'Ошибка соединения с сервером')
     } finally {
       setLoading(false)
     }
@@ -150,22 +146,22 @@ const Fxod = () => {
 
             <form onSubmit={handleSubmit} className="login-form">
               <div className="form-group">
-                <label className="form-label" htmlFor="email">
-                  Email
+                <label className="form-label" htmlFor="username">
+                  Логин
                 </label>
                 <div className="input-wrapper">
                   <svg className="input-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   <input
-                    id="email"
-                    type="email"
-                    name="email"
-                    value={formData.email}
+                    id="username"
+                    type="text"
+                    name="username"
+                    value={formData.username}
                     onChange={handleChange}
-                    placeholder="admin@restock.ru"
+                    placeholder="admin"
                     className="form-input"
-                    autoComplete="email"
+                    autoComplete="username"
                     disabled={loading}
                   />
                 </div>
@@ -185,7 +181,7 @@ const Fxod = () => {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="•Леха соси•"
+                    placeholder="••••••••"
                     className="form-input"
                     autoComplete="current-password"
                     disabled={loading}
@@ -246,7 +242,10 @@ const Fxod = () => {
             </form>
 
             <div className="form-footer">
-              <p>Демо-доступ: <strong>admin@restock.ru</strong> / <strong>admin123</strong></p>
+              <p>Демо-доступ: <strong>admin</strong> / <strong>12345</strong></p>
+              <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.5rem' }}>
+                Также: <strong>manager</strong> / <strong>12345</strong>
+              </p>
             </div>
           </div>
         </div>

@@ -2,6 +2,15 @@ import React, { useState, useMemo, useEffect } from 'react'
 import './stoplist.css'
 import Sidebar from "../components/Sidebar.jsx"
 
+// 🌟 Вспомогательная функция: добавляет токен ко всем запросам
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
 const StopList = () => {
   const [allDishes, setAllDishes] = useState([])
   const [stopList, setStopList] = useState([])
@@ -18,10 +27,12 @@ const StopList = () => {
   const loadData = async () => {
     setLoading(true)
     try {
+      const headers = getAuthHeaders(); // ✅ Получаем заголовки с токеном
+      
       // Загружаем блюда и автоматический стоп-лист параллельно
       const [dishesRes, stopListRes] = await Promise.all([
-        fetch('http://localhost:8080/api/dishes'),
-        fetch('http://localhost:8080/api/stop-list')
+        fetch('http://localhost:8080/api/dishes', { headers }), // ✅ Добавлены заголовки
+        fetch('http://localhost:8080/api/stop-list', { headers }) // ✅ Добавлены заголовки
       ])
 
       const dishesData = await dishesRes.json()
@@ -40,7 +51,7 @@ const StopList = () => {
     try {
       const response = await fetch('http://localhost:8080/api/stop-list', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(), // ✅ Добавлены заголовки
         body: JSON.stringify({
           dishId: dish.id,
           dishName: dish.name,
@@ -64,7 +75,8 @@ const StopList = () => {
   const handleRemoveFromStopList = async (dishId) => {
     try {
       const response = await fetch(`http://localhost:8080/api/stop-list/${dishId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders() // ✅ Добавлены заголовки
       })
 
       if (response.ok) {

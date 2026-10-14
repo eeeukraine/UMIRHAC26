@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react'
 import './monit.css'
 import Sidebar from "../components/Sidebar.jsx"
 
+// 🌟 Вспомогательная функция: добавляет токен ко всем запросам
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
 const Monit = () => {
   const [inventory, setInventory] = useState([])
   const [suggestedDeliveries, setSuggestedDeliveries] = useState([])
@@ -24,6 +33,8 @@ const Monit = () => {
   const loadMonitoringData = async () => {
     setLoading(true)
     try {
+      const headers = getAuthHeaders(); // ✅ Получаем заголовки с токеном один раз
+
       // Загружаем все данные параллельно, включая новые рецепты под угрозой
       const [
         productsRes,
@@ -32,18 +43,18 @@ const Monit = () => {
         statsRes,
         atRiskRes
       ] = await Promise.all([
-        fetch('http://localhost:8080/api/warehouse/products'),
-        fetch('http://localhost:8080/api/warehouse/low-stock'),
-        fetch('http://localhost:8080/api/warehouse/expiring?days=7'),
-        fetch('http://localhost:8080/api/warehouse/stats'),
-        fetch('http://localhost:8080/api/warehouse/at-risk-recipes') // <-- НОВЫЙ ЗАПРОС
+        fetch('http://localhost:8080/api/warehouse/products', { headers }), // ✅ Добавлены заголовки
+        fetch('http://localhost:8080/api/warehouse/low-stock', { headers }), // ✅ Добавлены заголовки
+        fetch('http://localhost:8080/api/warehouse/expiring?days=7', { headers }), // ✅ Добавлены заголовки
+        fetch('http://localhost:8080/api/warehouse/stats', { headers }), // ✅ Добавлены заголовки
+        fetch('http://localhost:8080/api/warehouse/at-risk-recipes', { headers }) // ✅ Добавлены заголовки
       ])
 
       const products = await productsRes.json()
       const lowStock = await lowStockRes.json()
       const expiring = await expiringRes.json()
       const stats = await statsRes.json()
-      const atRisk = await atRiskRes.json() // <-- НОВЫЕ ДАННЫЕ
+      const atRisk = await atRiskRes.json()
 
       // 1. Формируем инвентарь с партиями
       const inventoryData = products.map(product => {
@@ -69,15 +80,15 @@ const Monit = () => {
         }
       })
 
-      // 2. Рекомендуемые поставки (используем данные, которые теперь отдает бэкенд)
+      // 2. Рекомендуемые поставки
       const deliveriesData = lowStock.map(product => ({
         id: product.id,
         productName: product.name,
-        suggestedQuantity: product.suggestedQuantity, // Сколько докупить
-        currentQuantity: product.currentQuantity,     // Текущий остаток
-        minQuantity: product.minQuantity,             // Минимальный порог
+        suggestedQuantity: product.suggestedQuantity,
+        currentQuantity: product.currentQuantity,
+        minQuantity: product.minQuantity,
         unit: product.unit,
-        priority: product.priority                    // critical, high, medium
+        priority: product.priority
       }))
 
       // 3. Истекающие сроки
@@ -94,7 +105,7 @@ const Monit = () => {
         }
       })
 
-      // 4. Рецепты под угрозой (теперь реальные данные с бэкенда!)
+      // 4. Рецепты под угрозой
       const recipesData = atRisk.map(recipe => ({
         id: recipe.id,
         name: recipe.name,
@@ -278,7 +289,7 @@ const Monit = () => {
                 </div>
               )}
 
-              {/* 2. Требуется поставка (ОБНОВЛЕНО С КОНТЕКСТОМ) */}
+              {/* 2. Требуется поставка */}
               {activeViews.deliveries && (
                 <div className="card list-panel">
                   <div className="card-header card-header-red">
@@ -357,7 +368,7 @@ const Monit = () => {
                 </div>
               )}
 
-              {/* 4. Рецепты под угрозой (ТЕПЕРЬ РАБОТАЕТ!) */}
+              {/* 4. Рецепты под угрозой */}
               {activeViews.recipes && (
                 <div className="card list-panel">
                   <div className="card-header card-header-purple">

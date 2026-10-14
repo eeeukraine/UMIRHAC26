@@ -2,9 +2,18 @@ import React, { useState, useEffect } from 'react';
 import './priemps.css';
 import Sidebar from "../components/Sidebar.jsx";
 
+// 🌟 Вспомогательная функция: добавляет токен ко всем запросам
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
 const SupplyReception = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [inputMode, setInputMode] = useState('manual'); // По умолчанию ручной ввод
+  const [inputMode, setInputMode] = useState('manual');
   
   const [formData, setFormData] = useState({
     supplierName: '',
@@ -18,10 +27,12 @@ const SupplyReception = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
 
-  //  ЗАГРУЗКА ПОСТАВОК С БЭКЕНДА
+  // ЗАГРУЗКА ПОСТАВОК С БЭКЕНДА
   const loadDeliveries = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/deliveries');
+      const response = await fetch('http://localhost:8080/api/deliveries', {
+        headers: getAuthHeaders() // ✅ Добавлены заголовки с токеном
+      });
       if (!response.ok) throw new Error('Ошибка загрузки');
       const data = await response.json();
       setDeliveries(data);
@@ -60,7 +71,7 @@ const SupplyReception = () => {
     }));
   };
 
-  //  ОТПРАВКА ПОСТАВКИ НА БЭКЕНД
+  // ОТПРАВКА ПОСТАВКИ НА БЭКЕНД
   const handleManualSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -77,26 +88,24 @@ const SupplyReception = () => {
         throw new Error('Добавьте хотя бы один продукт');
       }
 
-      // Формируем запрос в формате бэкенда
       const deliveryData = {
         supplier: formData.supplierName,
         date: formData.deliveryDate,
         status: "Принята",
         items: validProducts.map(p => ({
-          productId: null, // Пока null, потом можно связать с таблицей products
-          name: p.name,
+          productId: null,
+          productName: p.name,
           quantity: parseFloat(p.quantity),
           unit: p.unit,
           expirationDate: p.expirationDate,
-          unitPrice: 0, // Пока 0, потом можно добавить поле цены
+          unitPrice: 0, 
           batchNumber: `BATCH-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`
         }))
       };
 
-      // Отправляем на бэкенд
       const response = await fetch('http://localhost:8080/api/deliveries', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(), // ✅ Добавлены заголовки с токеном
         body: JSON.stringify(deliveryData)
       });
 
@@ -108,19 +117,14 @@ const SupplyReception = () => {
       await response.json();
       
       setSuccessMessage('Поставка успешно зарегистрирована!');
-      
-      // Перезагружаем список поставок
       await loadDeliveries();
       
-      // Сброс формы
       setFormData({
         supplierName: '',
         deliveryDate: '',
         products: [{ name: '', quantity: '', unit: 'кг', expirationDate: '' }],
       });
       setIsModalOpen(false);
-      
-      // Очищаем сообщение через 3 секунды
       setTimeout(() => setSuccessMessage(''), 3000);
       
     } catch (err) {
@@ -135,7 +139,6 @@ const SupplyReception = () => {
     const file = e.target.files[0];
     if (file) {
       setLoading(true);
-      // Пока заглушка — в будущем можно разобрать Excel и отправить на бэкенд
       setTimeout(() => {
         setSuccessMessage(`Файл "${file.name}" успешно обработан!`);
         setLoading(false);
@@ -218,7 +221,7 @@ const SupplyReception = () => {
                         </div>
                         <div className="delivery-item-details">
                           <span>{delivery.date}</span>
-                          <span>{delivery.itemsCount} позиций</span>
+                          <span>{delivery.totalItems || delivery.items?.length || 0} позиций</span>
                         </div>
                       </div>
                     ))
@@ -250,7 +253,6 @@ const SupplyReception = () => {
         </div>
       </main>
 
-      {/* Модальное окно (без изменений) */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -330,7 +332,7 @@ const SupplyReception = () => {
                       {formData.products.map((product, index) => (
                         <div key={index} className="product-item">
                           <div className="product-grid">
-                            <input type="text" value={product.name} onChange={(e) => handleProductChange(index, 'name', e.target.value)} placeholder="Название" className="product-input" required />
+                            <input type="text" value={product.name} onChange={(e) => handleProductChange(index, 'name', e.target.value)} placeholder="Название (точно как в базе)" className="product-input" required />
                             <input type="number" step="0.01" value={product.quantity} onChange={(e) => handleProductChange(index, 'quantity', e.target.value)} placeholder="Кол-во" className="product-input" required />
                             <div className="product-actions">
                               <select value={product.unit} onChange={(e) => handleProductChange(index, 'unit', e.target.value)} className="form-select">

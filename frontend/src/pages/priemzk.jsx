@@ -2,40 +2,52 @@ import React, { useState, useEffect } from 'react'
 import './priemzk.css'
 import Sidebar from "../components/Sidebar.jsx"
 
+// 🌟 Вспомогательная функция: добавляет токен ко всем запросам
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
 const ActiveOrders = () => {
   const [activeFilter, setActiveFilter] = useState('all')
   const [loading, setLoading] = useState(false)
   const [stopList, setStopList] = useState([])
   const [orders, setOrders] = useState([])
   const [dishes, setDishes] = useState([])
+  const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
     loadData()
   }, [])
-  
-  const [generating, setGenerating] = useState(false)
+
   const handleGenerateOrders = async () => {
-  setGenerating(true)
-  try {
-    await fetch('http://localhost:8080/api/generator/orders?count=3', {
-      method: 'POST'
-    })
-    await loadData() // Перезагружаем список заказов
-    alert('Сгенерировано 3 случайных заказа!')
-  } catch (err) {
-    console.error(err)
-  } finally {
-    setGenerating(false)
+    setGenerating(true)
+    try {
+      await fetch('http://localhost:8080/api/generator/orders?count=3', {
+        method: 'POST',
+        headers: getAuthHeaders()
+      })
+      await loadData()
+      alert('Сгенерировано 3 случайных заказа!')
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setGenerating(false)
+    }
   }
-}
+
   const loadData = async () => {
     setLoading(true)
     try {
-      // Загружаем заказы, блюда и стоп-лист параллельно
+      const headers = getAuthHeaders();
+      
       const [ordersRes, dishesRes, stopListRes] = await Promise.all([
-        fetch('http://localhost:8080/api/orders'),
-        fetch('http://localhost:8080/api/dishes'),
-        fetch('http://localhost:8080/api/stop-list')
+        fetch('http://localhost:8080/api/orders', { headers }),
+        fetch('http://localhost:8080/api/dishes', { headers }),
+        fetch('http://localhost:8080/api/stop-list', { headers })
       ])
 
       const ordersData = await ordersRes.json()
@@ -56,12 +68,12 @@ const ActiveOrders = () => {
     try {
       const response = await fetch(`http://localhost:8080/api/orders/${orderId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(newStatus)
       })
 
       if (response.ok) {
-        await loadData() // Перезагружаем данные
+        await loadData()
       }
     } catch (err) {
       console.error('Ошибка обновления статуса:', err)
@@ -73,7 +85,7 @@ const ActiveOrders = () => {
     try {
       const response = await fetch('http://localhost:8080/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(orderData)
       })
 
@@ -91,13 +103,24 @@ const ActiveOrders = () => {
     }
   }
 
-  const filteredOrders = orders.filter(order => {
-    if (activeFilter === 'all') return true
-    if (activeFilter === 'pending') return order.status === 'pending' || order.status === 'new'
-    if (activeFilter === 'preparing') return order.status === 'preparing' || order.status === 'cooking'
-    if (activeFilter === 'ready') return order.status === 'ready' || order.status === 'completed'
-    return order.status === activeFilter
-  })
+  // ✅ ДОБАВЛЕНА СОРТИРОВКА: новые заказы сверху (по дате создания, fallback на ID)
+  const filteredOrders = orders
+    .filter(order => {
+      if (activeFilter === 'all') return true
+      if (activeFilter === 'pending') return order.status === 'pending' || order.status === 'new'
+      if (activeFilter === 'preparing') return order.status === 'preparing' || order.status === 'cooking'
+      if (activeFilter === 'ready') return order.status === 'ready' || order.status === 'completed'
+      return order.status === activeFilter
+    })
+    .sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      
+      if (dateB !== dateA) {
+        return dateB - dateA; // Сначала новые по дате
+      }
+      return b.id - a.id; // Если даты равны, сначала новые по ID
+    })
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -110,7 +133,7 @@ const ActiveOrders = () => {
       case 'cancelled':
         return <span className="status-badge badge-cancelled">❌ Отменен</span>
       default:
-        return <span className="status-badge badge-new"> Новый</span>
+        return <span className="status-badge badge-new">Новый</span>
     }
   }
 
@@ -134,7 +157,6 @@ const ActiveOrders = () => {
       
       <main className="supply-content">
         <div className="page-wrapper">
-          
           <div className="page-header">
             <h1 className="page-title">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -144,15 +166,16 @@ const ActiveOrders = () => {
             </h1>
             <p className="page-subtitle">Управление текущими заказами, отслеживание статусов и содержимого</p>
           </div>
-          <button className="btn-primary" onClick={handleGenerateOrders} disabled={generating}  style={{ marginLeft: '3em',  margin: '1em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-              </svg>{generating ? 'Генерация...' : 'Симулировать заказы'}
-            </button>
+          
+          <button className="btn-primary" onClick={handleGenerateOrders} disabled={generating} style={{ marginLeft: '3em', margin: '1em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+            {generating ? 'Генерация...' : 'Симулировать заказы'}
+          </button>
+
           <div className="content-grid">
-            
             <div className="left-column">
-              
               <div className="filter-tabs">
                 <button 
                   className={`filter-tab ${activeFilter === 'all' ? 'active' : ''}`}
@@ -282,7 +305,6 @@ const ActiveOrders = () => {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </main>
