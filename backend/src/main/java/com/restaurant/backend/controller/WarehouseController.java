@@ -34,6 +34,11 @@ public class WarehouseController {
         this.dishIngredientRepository = dishIngredientRepository;
     }
 
+    // Безопасный фильтр: проверяет productId на null
+    private java.util.function.Predicate<Batch> byProduct(Long productId) {
+        return b -> b.getProductId() != null && b.getProductId().equals(productId);
+    }
+
     // 1. Все продукты с их партиями
     @GetMapping("/products")
     public List<Map<String, Object>> getAllProductsWithBatches() {
@@ -49,35 +54,29 @@ public class WarehouseController {
             productData.put("category", product.getCategory());
             
             List<Batch> productBatches = allBatches.stream()
-                .filter(b -> b.getProductId().equals(product.getId()))
+                .filter(byProduct(product.getId()))
                 .collect(Collectors.toList());
             
-            // Округляем до 2 знаков, чтобы избежать проблем с плавающей точкой (17.0000000004)
             double totalQuantity = Math.round(productBatches.stream()
                 .mapToDouble(Batch::getQuantity)
                 .sum() * 100.0) / 100.0;
             
             productData.put("totalQuantity", totalQuantity);
             productData.put("batches", productBatches);
-            
-            if (totalQuantity < product.getMinStockQuantity()) {
-                productData.put("status", "low");
-            } else {
-                productData.put("status", "ok");
-            }
+            productData.put("status", totalQuantity < product.getMinStockQuantity() ? "low" : "ok");
             
             return productData;
         }).collect(Collectors.toList());
     }
 
-    // 2. Продукты с истекающим сроком (в течение N дней)
+    // 2. Истекающие сроки
     @GetMapping("/expiring")
     public List<Batch> getExpiringBatches(@RequestParam(defaultValue = "7") int days) {
         LocalDate date = LocalDate.now().plusDays(days);
         return batchRepository.findExpiringBefore(date);
     }
 
-    // 3. Продукты ниже минимального остатка (с приоритетом и рекомендацией)
+    // 3. Низкие остатки
     @GetMapping("/low-stock")
     public List<Map<String, Object>> getLowStockProducts() {
         List<Product> products = productRepository.findAll();
@@ -86,25 +85,21 @@ public class WarehouseController {
         return products.stream()
             .filter(product -> {
                 double total = allBatches.stream()
-                    .filter(b -> b.getProductId().equals(product.getId()))
+                    .filter(byProduct(product.getId()))
                     .mapToDouble(Batch::getQuantity)
                     .sum();
-                // Показываем только если остаток меньше 80% от минимума (чтобы не спамить мелочью)
                 return total < (product.getMinStockQuantity() * 0.8);
             })
             .map(product -> {
                 Map<String, Object> data = new HashMap<>();
                 double total = allBatches.stream()
-                    .filter(b -> b.getProductId().equals(product.getId()))
+                    .filter(byProduct(product.getId()))
                     .mapToDouble(Batch::getQuantity)
                     .sum();
-                
-                // Округляем
                 total = Math.round(total * 100.0) / 100.0;
                 double minStock = product.getMinStockQuantity();
                 double ratio = total / minStock;
                 
-                // Определяем приоритет
                 String priority;
                 if (ratio < 0.3) priority = "critical";
                 else if (ratio < 0.6) priority = "high";
@@ -116,19 +111,18 @@ public class WarehouseController {
                 data.put("currentQuantity", total);
                 data.put("minQuantity", minStock);
                 data.put("priority", priority);
-                data.put("suggestedQuantity", Math.ceil(minStock - total)); // Сколько докупить
+                data.put("suggestedQuantity", Math.ceil(minStock - total));
                 
                 return data;
             })
             .sorted(Comparator.comparing(m -> {
-                // Сортировка по приоритету: critical -> high -> medium
                 String p = (String) m.get("priority");
                 return p.equals("critical") ? 0 : (p.equals("high") ? 1 : 2);
             }))
             .collect(Collectors.toList());
     }
 
-    // 4. Рецепты под угрозой (не хватает ингредиентов даже на 1 порцию)
+    // 4. Рецепты под угрозой (ИСПРАВЛЕНО)
     @GetMapping("/at-risk-recipes")
     public List<Map<String, Object>> getAtRiskRecipes() {
         List<Map<String, Object>> atRisk = new ArrayList<>();
@@ -137,29 +131,41 @@ public class WarehouseController {
 
         for (Dish dish : dishes) {
             List<DishIngredient> ingredients = dishIngredientRepository.findByDishId(dish.getId());
-            List<String> missingProducts = new ArrayList<>();
+            List<String> lowStockProducts = new ArrayList<>();
+            boolean isStopList = false;
 
             for (DishIngredient ingredient : ingredients) {
                 double available = allBatches.stream()
-                    .filter(b -> b.getProductId().equals(ingredient.getProductId()))
+                    .filter(b -> b.getProductId() != null && b.getProductId().equals(ingredient.getProductId()))
                     .mapToDouble(Batch::getQuantity)
                     .sum();
 
-                if (available < ingredient.getQuantity()) {
-                    String productName = allBatches.stream()
-                        .filter(b -> b.getProductId().equals(ingredient.getProductId()))
-                        .findFirst()
-                        .map(Batch::getProductName)
-                        .orElse("Продукт ID:" + ingredient.getProductId());
-                    missingProducts.add(productName);
+                double needed = ingredient.getQuantity();
+
+                // 1. Если не хватает даже на 1 порцию — это СТОП-ЛИСТ
+                if (available < needed) {
+                    isStopList = true;
+                    break;
+                }
+
+                // 2. Если хватает на 1 порцию, но меньше чем на 3 порции — это УГРОЗА
+                if (available < needed * 3.0) {
+                    String productName = ingredient.getProductName();
+                    if (productName == null) {
+                        productName = productRepository.findById(ingredient.getProductId())
+                            .map(Product::getName)
+                            .orElse("Продукт ID:" + ingredient.getProductId());
+                    }
+                    lowStockProducts.add(productName + " (остаток: " + String.format("%.2f", available) + ")");
                 }
             }
 
-            if (!missingProducts.isEmpty()) {
+            // Добавляем только если это не стоп-лист, но есть товары с низким остатком
+            if (!isStopList && !lowStockProducts.isEmpty()) {
                 Map<String, Object> recipe = new HashMap<>();
                 recipe.put("id", dish.getId());
                 recipe.put("name", dish.getName());
-                recipe.put("missingProducts", missingProducts);
+                recipe.put("missingProducts", lowStockProducts);
                 atRisk.add(recipe);
             }
         }
@@ -167,7 +173,7 @@ public class WarehouseController {
         return atRisk;
     }
 
-    // 5. Статистика для дашборда
+    // 5. Статистика
     @GetMapping("/stats")
     public Map<String, Object> getStats() {
         Map<String, Object> stats = new HashMap<>();
@@ -177,11 +183,10 @@ public class WarehouseController {
         
         stats.put("totalProducts", products.size());
         
-        // Требуют поставки (менее 80% от минимума)
         long lowStock = products.stream()
             .filter(product -> {
                 double total = allBatches.stream()
-                    .filter(b -> b.getProductId().equals(product.getId()))
+                    .filter(byProduct(product.getId()))
                     .mapToDouble(Batch::getQuantity)
                     .sum();
                 return total < (product.getMinStockQuantity() * 0.8);
@@ -189,14 +194,12 @@ public class WarehouseController {
             .count();
         stats.put("lowStock", lowStock);
         
-        // Близко к истечению (7 дней)
         LocalDate weekLater = LocalDate.now().plusDays(7);
         long expiringSoon = allBatches.stream()
-            .filter(b -> b.getExpirationDate().isBefore(weekLater))
+            .filter(b -> b.getExpirationDate() != null && b.getExpirationDate().isBefore(weekLater))
             .count();
         stats.put("expiringSoon", expiringSoon);
         
-        // Рецепты под угрозой (считаем динамически)
         long recipesAtRisk = getAtRiskRecipes().size();
         stats.put("recipesAtRisk", recipesAtRisk);
         

@@ -23,7 +23,7 @@ public class DeliveryItem {
     private Long productId;
 
     @Column(name = "product_name", length = 100)
-    @JsonProperty("name") // название продукта для отображения
+    @JsonProperty("productName") // <-- ИСПРАВЛЕНО: теперь совпадает с тем, что шлёт фронтенд
     private String productName;
 
     @Column(nullable = false)
