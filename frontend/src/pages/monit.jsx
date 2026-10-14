@@ -10,7 +10,6 @@ const Monit = () => {
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState(null)
 
-  // Состояние для открытых панелей (по умолчанию все открыты для удобства)
   const [activeViews, setActiveViews] = useState({
     inventory: true,
     deliveries: true,
@@ -25,47 +24,89 @@ const Monit = () => {
   const loadMonitoringData = async () => {
     setLoading(true)
     try {
-      await new Promise(resolve => setTimeout(resolve, 800))
-      
-      const mockInventory = [
-        { id: 1, name: 'Молоко 3.2%', quantity: 15, unit: 'л', minQuantity: 20, status: 'low', expirationDate: '2025-05-15' },
-        { id: 2, name: 'Куриное филе', quantity: 8, unit: 'кг', minQuantity: 10, status: 'low', expirationDate: '2025-05-12' },
-        { id: 3, name: 'Помидоры', quantity: 25, unit: 'кг', minQuantity: 15, status: 'ok', expirationDate: '2025-05-25' },
-        { id: 4, name: 'Сыр моцарелла', quantity: 5, unit: 'кг', minQuantity: 8, status: 'low', expirationDate: '2025-05-20' },
-        { id: 5, name: 'Базилик', quantity: 2, unit: 'кг', minQuantity: 3, status: 'critical', expirationDate: '2025-05-08' },
-      ]
+      // Загружаем все данные параллельно, включая новые рецепты под угрозой
+      const [
+        productsRes,
+        lowStockRes,
+        expiringRes,
+        statsRes,
+        atRiskRes
+      ] = await Promise.all([
+        fetch('http://localhost:8080/api/warehouse/products'),
+        fetch('http://localhost:8080/api/warehouse/low-stock'),
+        fetch('http://localhost:8080/api/warehouse/expiring?days=7'),
+        fetch('http://localhost:8080/api/warehouse/stats'),
+        fetch('http://localhost:8080/api/warehouse/at-risk-recipes') // <-- НОВЫЙ ЗАПРОС
+      ])
 
-      const mockDeliveries = [
-        { id: 1, productName: 'Молоко 3.2%', suggestedQuantity: 25, unit: 'л', priority: 'high' },
-        { id: 2, productName: 'Куриное филе', suggestedQuantity: 15, unit: 'кг', priority: 'high' },
-        { id: 3, productName: 'Сыр моцарелла', suggestedQuantity: 10, unit: 'кг', priority: 'medium' },
-        { id: 4, productName: 'Базилик', suggestedQuantity: 5, unit: 'кг', priority: 'critical' },
-      ]
+      const products = await productsRes.json()
+      const lowStock = await lowStockRes.json()
+      const expiring = await expiringRes.json()
+      const stats = await statsRes.json()
+      const atRisk = await atRiskRes.json() // <-- НОВЫЕ ДАННЫЕ
 
-      const mockRecipes = [
-        { id: 1, name: 'Паста Карбонара', missingProducts: ['Молоко 3.2%', 'Сыр моцарелла'] },
-        { id: 2, name: 'Цезарь с курицей', missingProducts: ['Куриное филе', 'Базилик'] },
-        { id: 3, name: 'Капрезе', missingProducts: ['Сыр моцарелла', 'Базилик'] },
-      ]
+      // 1. Формируем инвентарь с партиями
+      const inventoryData = products.map(product => {
+        const totalQty = parseFloat((product.batches.reduce((sum, b) => sum + b.quantity, 0)).toFixed(2))
+        const earliestBatch = product.batches.length > 0 
+          ? product.batches.reduce((min, b) => new Date(b.expirationDate) < new Date(min.expirationDate) ? b : min)
+          : null
 
-      // Вычисляем продукты, истекающие в течение 7 дней
-      const today = new Date()
-      const mockExpiring = mockInventory.filter(item => {
-        const expDate = new Date(item.expirationDate)
-        const diffTime = expDate - today
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-        return diffDays <= 7 && diffDays >= 0
-      }).map(item => {
-        const expDate = new Date(item.expirationDate)
-        const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24))
-        return { ...item, daysLeft: diffDays }
+        let status = 'ok'
+        if (totalQty < product.minStock) {
+          status = totalQty < product.minStock * 0.3 ? 'critical' : 'low'
+        }
+
+        return {
+          id: product.id,
+          name: product.name,
+          quantity: totalQty,
+          unit: product.unit,
+          minQuantity: product.minStock,
+          status,
+          expirationDate: earliestBatch ? earliestBatch.expirationDate : null,
+          batches: product.batches
+        }
       })
 
-      setInventory(mockInventory)
-      setSuggestedDeliveries(mockDeliveries)
-      setAffectedRecipes(mockRecipes)
-      setExpiringSoon(mockExpiring)
+      // 2. Рекомендуемые поставки (используем данные, которые теперь отдает бэкенд)
+      const deliveriesData = lowStock.map(product => ({
+        id: product.id,
+        productName: product.name,
+        suggestedQuantity: product.suggestedQuantity, // Сколько докупить
+        currentQuantity: product.currentQuantity,     // Текущий остаток
+        minQuantity: product.minQuantity,             // Минимальный порог
+        unit: product.unit,
+        priority: product.priority                    // critical, high, medium
+      }))
+
+      // 3. Истекающие сроки
+      const expiringData = expiring.map(batch => {
+        const daysLeft = Math.ceil((new Date(batch.expirationDate) - new Date()) / (1000 * 60 * 60 * 24))
+        return {
+          id: batch.id,
+          name: batch.productName,
+          quantity: parseFloat(batch.quantity.toFixed(2)),
+          unit: batch.unit,
+          expirationDate: batch.expirationDate,
+          daysLeft,
+          batchNumber: batch.batchNumber
+        }
+      })
+
+      // 4. Рецепты под угрозой (теперь реальные данные с бэкенда!)
+      const recipesData = atRisk.map(recipe => ({
+        id: recipe.id,
+        name: recipe.name,
+        missingProducts: recipe.missingProducts
+      }))
+
+      setInventory(inventoryData)
+      setSuggestedDeliveries(deliveriesData)
+      setExpiringSoon(expiringData)
+      setAffectedRecipes(recipesData)
       setLastUpdate(new Date().toLocaleString('ru-RU'))
+      
     } catch (err) {
       console.error('Ошибка загрузки данных мониторинга:', err)
     } finally {
@@ -95,7 +136,6 @@ const Monit = () => {
     }
   }
 
-  // Подсчет активных панелей для динамической сетки
   const activeCount = Object.values(activeViews).filter(Boolean).length
 
   if (loading) {
@@ -132,7 +172,6 @@ const Monit = () => {
             </p>
           </div>
 
-          {/* Статистика (теперь кликабельная) */}
           <div className="stats-grid">
             <div 
               className={`stat-card ${activeViews.inventory ? 'active' : ''}`} 
@@ -195,13 +234,12 @@ const Monit = () => {
             </div>
           </div>
 
-          {/* Динамическая сетка списков */}
           {activeCount > 0 ? (
             <div 
               className="dynamic-lists-grid" 
               style={{ gridTemplateColumns: `repeat(${activeCount}, minmax(0, 1fr))` }}
             >
-              {/* 1. Остатки продуктов */}
+              {/* 1. Все продукты */}
               {activeViews.inventory && (
                 <div className="card list-panel">
                   <div className="card-header">
@@ -221,9 +259,11 @@ const Monit = () => {
                             <p className="inventory-details">
                               <span className="inventory-quantity">{item.quantity} {item.unit}</span>
                               <span className="inventory-min">мин: {item.minQuantity} {item.unit}</span>
-                              <span className="inventory-expiration">
-                                срок: {new Date(item.expirationDate).toLocaleDateString('ru-RU')}
-                              </span>
+                              {item.expirationDate && (
+                                <span className="inventory-expiration">
+                                  срок: {new Date(item.expirationDate).toLocaleDateString('ru-RU')}
+                                </span>
+                              )}
                             </p>
                           </div>
                           <div className={`inventory-status status-${item.status}`}>
@@ -238,7 +278,7 @@ const Monit = () => {
                 </div>
               )}
 
-              {/* 2. Рекомендуемая поставка */}
+              {/* 2. Требуется поставка (ОБНОВЛЕНО С КОНТЕКСТОМ) */}
               {activeViews.deliveries && (
                 <div className="card list-panel">
                   <div className="card-header card-header-red">
@@ -256,7 +296,12 @@ const Monit = () => {
                           <div key={delivery.id} className={`delivery-item ${getPriorityColor(delivery.priority)}`}>
                             <div className="delivery-info">
                               <p className="delivery-product">{delivery.productName}</p>
-                              <p className="delivery-quantity">{delivery.suggestedQuantity} {delivery.unit}</p>
+                              <p className="delivery-quantity">
+                                Докупить: <strong>{delivery.suggestedQuantity} {delivery.unit}</strong>
+                              </p>
+                              <p className="delivery-context" style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                                (остаток: {delivery.currentQuantity} {delivery.unit}, мин: {delivery.minQuantity} {delivery.unit})
+                              </p>
                             </div>
                             <span className={`delivery-priority priority-${delivery.priority}`}>
                               {delivery.priority === 'critical' && 'Критично'}
@@ -276,7 +321,7 @@ const Monit = () => {
                 </div>
               )}
 
-              {/* 3. Истекающие сроки */}
+              {/* 3. Истекают в течение 7 дней */}
               {activeViews.expiring && (
                 <div className="card list-panel">
                   <div className="card-header card-header-amber">
@@ -294,6 +339,7 @@ const Monit = () => {
                           <div key={item.id} className="expiring-item">
                             <div className="expiring-info">
                               <p className="expiring-name">{item.name}</p>
+                              <p className="expiring-quantity">{item.quantity} {item.unit}</p>
                               <p className="expiring-date">Годен до: {new Date(item.expirationDate).toLocaleDateString('ru-RU')}</p>
                             </div>
                             <span className={`expiring-badge ${item.daysLeft <= 3 ? 'critical' : 'warning'}`}>
@@ -311,7 +357,7 @@ const Monit = () => {
                 </div>
               )}
 
-              {/* 4. Рецепты под угрозой */}
+              {/* 4. Рецепты под угрозой (ТЕПЕРЬ РАБОТАЕТ!) */}
               {activeViews.recipes && (
                 <div className="card list-panel">
                   <div className="card-header card-header-purple">

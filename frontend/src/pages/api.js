@@ -1,9 +1,10 @@
 const API_BASE_URL = 'http://localhost:8080/api';
 
-// Получить все блюда
+// Получить все блюда С ИНГРЕДИЕНТАМИ
 export const fetchDishes = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/dishes`);
+    // 👇 ИЗМЕНЕНИЕ ЗДЕСЬ: добавлено /with-ingredients
+    const response = await fetch(`${API_BASE_URL}/dishes/with-ingredients`);
     if (!response.ok) throw new Error('Ошибка загрузки блюд');
     return await response.json();
   } catch (error) {

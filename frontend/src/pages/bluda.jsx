@@ -1,46 +1,44 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import './bluda.css'
 import Sidebar from "../components/Sidebar.jsx"
-import { fetchDishes, fetchCategories } from './api' // Импортируем наши функции
+import { fetchDishes, fetchCategories } from './api' 
 
 const Bluda = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Все')
   
-  // Новые состояния для данных с бэкенда
   const [dishes, setDishes] = useState([])
   const [filterCategories, setFilterCategories] = useState(['Все'])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Загружаем данные при первом рендере
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Запрашиваем блюда и категории параллельно
         const [dishesData, categoriesData] = await Promise.all([
           fetchDishes(),
           fetchCategories()
         ])
 
-        // Преобразуем данные с бэкенда под формат вашего фронтенда
         const formattedDishes = dishesData.map(dish => {
-          // Находим название категории по её ID
           const categoryObj = categoriesData.find(c => c.id === dish.categoryId)
           const categoryName = categoryObj ? categoryObj.name : 'Неизвестно'
 
+          // 🌟 Форматируем ингредиенты из объектов в красивые строки
+          const formattedIngredients = (dish.ingredients && dish.ingredients.length > 0)
+            ? dish.ingredients.map(ing => `${ing.name} — ${ing.quantity} ${ing.unit}`)
+            : ['Состав не указан']
+
           return {
             ...dish,
-            category: categoryName, // Добавляем строку категории для фильтров
+            category: categoryName,
             prepTime: dish.prepTimeMinutes ? `${dish.prepTimeMinutes} мин` : 'Не указано',
             calories: dish.calories ? `${dish.calories} ккал` : 'Не указано',
-            // Временно заглушка, пока не сделаем таблицу ингредиентов
-            ingredients: dish.ingredients || ['Данные об ингредиентах скоро будут'] 
+            ingredients: formattedIngredients // Теперь здесь массив строк
           }
         })
 
         setDishes(formattedDishes)
         
-        // Формируем список категорий для кнопок фильтра ('Все' + уникальные категории из блюд)
         const uniqueCategories = ['Все', ...new Set(formattedDishes.map(d => d.category))]
         setFilterCategories(uniqueCategories)
         
@@ -54,16 +52,13 @@ const Bluda = () => {
     loadData()
   }, [])
 
-  // Логика фильтрации и сортировки (Горячее всегда сверху!)
   const filteredDishes = useMemo(() => {
     let result = dishes
 
-    // 1. Фильтрация по категории
     if (selectedCategory !== 'Все') {
       result = result.filter(dish => dish.category === selectedCategory)
     }
 
-    // 2. Фильтрация по поиску
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       result = result.filter(dish => 
@@ -72,7 +67,6 @@ const Bluda = () => {
       )
     }
 
-    // 3. Сортировка: "Горячее" всегда первым, остальные по алфавиту
     return result.sort((a, b) => {
       if (a.category === 'Горячее' && b.category !== 'Горячее') return -1
       if (a.category !== 'Горячее' && b.category === 'Горячее') return 1
@@ -80,14 +74,13 @@ const Bluda = () => {
     })
   }, [searchQuery, selectedCategory, dishes])
 
-  // Функция для получения класса бейджа категории
   const getCategoryBadgeClass = (category) => {
     switch (category) {
       case 'Горячее': return 'badge-hot'
       case 'Салаты': return 'badge-salad'
       case 'Десерты': return 'badge-dessert'
       case 'Напитки': return 'badge-drink'
-      case 'Супы': return 'badge-soup' // Добавил для супов
+      case 'Супы': return 'badge-soup'
       default: return 'badge-default'
     }
   }
@@ -112,7 +105,6 @@ const Bluda = () => {
       <main className="supply-content">
         <div className="page-wrapper">
           
-          {/* Заголовок и управление */}
           <div className="page-header">
             <h1 className="page-title">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -125,7 +117,6 @@ const Bluda = () => {
             </p>
           </div>
 
-          {/* Поиск и фильтры */}
           <div className="controls-bar">
             <div className="search-box">
               <svg className="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -153,7 +144,6 @@ const Bluda = () => {
             </div>
           </div>
 
-          {/* Сетка блюд */}
           <div className="dishes-grid">
             {filteredDishes.length > 0 ? (
               filteredDishes.map((dish) => (

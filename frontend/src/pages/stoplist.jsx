@@ -1,55 +1,110 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import './stoplist.css'
 import Sidebar from "../components/Sidebar.jsx"
 
 const StopList = () => {
-  // Демо-данные: все доступные блюда в меню
-  const allDishes = [
-    { id: 1, name: 'Борщ с пампушками', category: 'Горячее' },
-    { id: 2, name: 'Паста Карбонара', category: 'Горячее' },
-    { id: 3, name: 'Салат Цезарь', category: 'Салаты' },
-    { id: 4, name: 'Стейк Рибай', category: 'Горячее' },
-    { id: 5, name: 'Тирамису', category: 'Десерты' },
-    { id: 6, name: 'Морс клюквенный', category: 'Напитки' },
-    { id: 7, name: 'Суп-пюре из тыквы', category: 'Супы' },
-    { id: 8, name: 'Хачапури по-аджарски', category: 'Выпечка' },
-  ]
-
-  // Демо-данные: текущий стоп-лист
-  const [stopList, setStopList] = useState([
-    { id: 1, dishId: 1, dishName: 'Борщ с пампушками', reason: 'Закончилась свекла', addedAt: '2024-05-10 14:30' },
-    { id: 2, dishId: 4, dishName: 'Стейк Рибай', reason: 'Нет мраморной говядины', addedAt: '2024-05-10 15:15' },
-  ])
-
+  const [allDishes, setAllDishes] = useState([])
+  const [stopList, setStopList] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [manualReason, setManualReason] = useState('')
+  const [selectedDish, setSelectedDish] = useState(null)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      // Загружаем блюда и автоматический стоп-лист параллельно
+      const [dishesRes, stopListRes] = await Promise.all([
+        fetch('http://localhost:8080/api/dishes'),
+        fetch('http://localhost:8080/api/stop-list')
+      ])
+
+      const dishesData = await dishesRes.json()
+      const stopListData = await stopListRes.json()
+
+      setAllDishes(dishesData)
+      setStopList(stopListData)
+    } catch (err) {
+      console.error('Ошибка загрузки данных:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddToStopList = async (dish, reason = 'Нет ингредиентов') => {
+    try {
+      const response = await fetch('http://localhost:8080/api/stop-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dishId: dish.id,
+          dishName: dish.name,
+          reason: reason
+        })
+      })
+
+      if (response.ok) {
+        await loadData()
+        setIsModalOpen(false)
+        setSearchQuery('')
+        setManualReason('')
+        setSelectedDish(null)
+      }
+    } catch (err) {
+      console.error('Ошибка добавления в стоп-лист:', err)
+      alert('Не удалось добавить блюдо в стоп-лист')
+    }
+  }
+
+  const handleRemoveFromStopList = async (dishId) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/stop-list/${dishId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        await loadData()
+      }
+    } catch (err) {
+      console.error('Ошибка удаления из стоп-листа:', err)
+      alert('Не удалось удалить блюдо из стоп-листа')
+    }
+  }
+
+  const handleManualAdd = () => {
+    if (selectedDish && manualReason.trim()) {
+      handleAddToStopList(selectedDish, manualReason)
+    }
+  }
 
   // Фильтруем блюда: ищем по названию ИСКЛЮЧАЯ те, что уже в стоп-листе
   const availableDishes = useMemo(() => {
-    const stoppedIds = new Set(stopList.map(item => item.dishId))
+    const stoppedIds = new Set(stopList.map(item => item.dishId || item.id))
     
     return allDishes.filter(dish => {
       const isNotStopped = !stoppedIds.has(dish.id)
-      const matchesSearch = dish.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            dish.category.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesSearch = dish.name.toLowerCase().includes(searchQuery.toLowerCase())
       return isNotStopped && matchesSearch
     })
-  }, [stopList, searchQuery])
+  }, [allDishes, stopList, searchQuery])
 
-  const handleAddToStopList = (dish) => {
-    const newItem = {
-      id: Date.now(),
-      dishId: dish.id,
-      dishName: dish.name,
-      reason: 'Нет ингредиентов', // В реальном проекте здесь можно открыть ввод причины
-      addedAt: new Date().toLocaleString('ru-RU')
-    }
-    setStopList(prev => [...prev, newItem])
-    setSearchQuery('') // Сброс поиска после добавления
-  }
-
-  const handleRemoveFromStopList = (id) => {
-    setStopList(prev => prev.filter(item => item.id !== id))
+  if (loading) {
+    return (
+      <div className="page-layout">
+        <Sidebar />
+        <main className="supply-content">
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <p>Загрузка стоп-листа...</p>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -68,7 +123,12 @@ const StopList = () => {
                 </svg>
                 Стоп-лист блюд
               </h1>
-              <p className="page-subtitle">Управление блюдами, которые временно недоступны для заказа</p>
+              <p className="page-subtitle">
+                Управление блюдами, которые временно недоступны для заказа
+                {stopList.length > 0 && (
+                  <span className="auto-badge">Автообновление: {stopList.length} блюд</span>
+                )}
+              </p>
             </div>
             <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -102,12 +162,16 @@ const StopList = () => {
                       </svg>
                       <span className="info-text">{item.reason}</span>
                     </div>
-                    <div className="info-row">
-                      <svg className="info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="info-text time">{item.addedAt}</span>
-                    </div>
+                    {item.addedAt && (
+                      <div className="info-row">
+                        <svg className="info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="info-text time">
+                          {new Date(item.addedAt).toLocaleString('ru-RU')}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
@@ -143,13 +207,41 @@ const StopList = () => {
               </svg>
               <input 
                 type="text" 
-                placeholder="Поиск блюда или категории..." 
+                placeholder="Поиск блюда..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="modal-search-input"
                 autoFocus
               />
             </div>
+
+            {selectedDish && (
+              <div className="manual-reason-section">
+                <label className="form-label">Причина добавления:</label>
+                <input
+                  type="text"
+                  value={manualReason}
+                  onChange={(e) => setManualReason(e.target.value)}
+                  placeholder="Например: Закончился сыр моцарелла"
+                  className="form-input"
+                />
+                <div className="modal-actions">
+                  <button className="btn-cancel" onClick={() => {
+                    setSelectedDish(null)
+                    setManualReason('')
+                  }}>
+                    Отмена
+                  </button>
+                  <button 
+                    className="btn-confirm"
+                    onClick={handleManualAdd}
+                    disabled={!manualReason.trim()}
+                  >
+                    Добавить в стоп-лист
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="modal-list-container">
               {availableDishes.length > 0 ? (
@@ -158,11 +250,14 @@ const StopList = () => {
                     <li key={dish.id} className="modal-list-item">
                       <div className="dish-info">
                         <span className="dish-name">{dish.name}</span>
-                        <span className="dish-category">{dish.category}</span>
+                        <span className="dish-category">{dish.category || 'Без категории'}</span>
                       </div>
                       <button 
                         className="btn-add-small"
-                        onClick={() => handleAddToStopList(dish)}
+                        onClick={() => {
+                          setSelectedDish(dish)
+                          setManualReason('')
+                        }}
                       >
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -174,7 +269,7 @@ const StopList = () => {
                 </ul>
               ) : (
                 <div className="modal-empty">
-                  <p>Блюда не найдены. Возможно, оно уже в стоп-листе.</p>
+                  <p>Блюда не найдены. Возможно, все блюда уже в стоп-листе.</p>
                 </div>
               )}
             </div>
