@@ -1,9 +1,15 @@
 package com.restaurant.backend.controller;
 
 import com.restaurant.backend.entity.Dish;
+import com.restaurant.backend.entity.DishIngredient;
+import com.restaurant.backend.repository.DishIngredientRepository;
 import com.restaurant.backend.repository.DishRepository;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/dishes")
@@ -11,9 +17,11 @@ import java.util.List;
 public class DishController {
 
     private final DishRepository dishRepository;
+    private final DishIngredientRepository dishIngredientRepository;
 
-    public DishController(DishRepository dishRepository) {
+    public DishController(DishRepository dishRepository, DishIngredientRepository dishIngredientRepository) {
         this.dishRepository = dishRepository;
+        this.dishIngredientRepository = dishIngredientRepository;
     }
 
     @GetMapping
@@ -41,5 +49,43 @@ public class DishController {
     @DeleteMapping("/{id}")
     public void deleteDish(@PathVariable Long id) {
         dishRepository.deleteById(id);
+    }
+
+    @GetMapping("/with-ingredients")
+    public List<Map<String, Object>> getDishesWithIngredients() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        List<Dish> dishes = dishRepository.findAll();
+        
+        for (Dish dish : dishes) {
+            Map<String, Object> dishData = new HashMap<>();
+            
+            // Заполняем основные поля блюда
+            dishData.put("id", dish.getId());
+            dishData.put("name", dish.getName());
+            dishData.put("description", dish.getDescription());
+            dishData.put("price", dish.getPrice());
+            dishData.put("prepTimeMinutes", dish.getPrepTimeMinutes());
+            dishData.put("calories", dish.getCalories());
+            
+            // ✅ ИСПРАВЛЕНИЕ: используем getCategoryId()
+            dishData.put("categoryId", dish.getCategoryId());
+            
+            // Ингредиенты
+            List<DishIngredient> ingredients = dishIngredientRepository.findByDishId(dish.getId());
+            List<Map<String, Object>> ingredientsData = new ArrayList<>();
+            
+            for (DishIngredient ing : ingredients) {
+                Map<String, Object> ingData = new HashMap<>();
+                ingData.put("name", ing.getProductName());
+                ingData.put("quantity", ing.getQuantity());
+                ingData.put("unit", ing.getUnit());
+                ingredientsData.add(ingData);
+            }
+            
+            dishData.put("ingredients", ingredientsData);
+            result.add(dishData);
+        }
+        
+        return result;
     }
 }
