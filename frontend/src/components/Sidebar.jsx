@@ -1,53 +1,57 @@
-import React from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, 
-  BarChart3, 
-  FileX, 
-  Ban, 
-  ShoppingCart, 
-  UtensilsCrossed, 
-  Package, 
-  Truck,
-  LogOut
-} from 'lucide-react'
-import './Sidebar.css'
+  LayoutDashboard, BarChart3, FileX, Ban, ShoppingCart, 
+  UtensilsCrossed, Package, Truck, LogOut 
+} from 'lucide-react';
+import { ROLES, MENU_PERMISSIONS } from '../constants/roles'; // Импортируем конфиг
+import './Sidebar.css';
 
 const Sidebar = () => {
-  const location = useLocation()
-  const navigate = useNavigate()
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Получаем данные пользователя
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const currentRole = user?.role || ROLES.WORKER; // Fallback на случай ошибки
 
-  // Новый порядок элементов + иконки
   const menuItems = [
-    { name: 'Главная', icon: LayoutDashboard, path: '/dashboard' },
-    { name: 'Аналитика', icon: BarChart3, path: '/analytics' },
-    { name: 'Поставки', icon: Truck, path: '/priemps' },
-    { name: 'Списания', icon: FileX, path: '/spisaniya' },
-    { name: 'Стоп-лист', icon: Ban, path: '/stoplist' },
-    { name: 'Заказы', icon: ShoppingCart, path: '/priemzk' },
-    { name: 'Блюда', icon: UtensilsCrossed, path: '/bluda' },
-    { name: 'Склад', icon: Package, path: '/monit' },
+    { name: 'Главная', icon: LayoutDashboard, path: '/dashboard', permissionKey: 'dashboard' },
+    { name: 'Аналитика', icon: BarChart3, path: '/analytics', permissionKey: 'analytics' },
+    { name: 'Списания', icon: FileX, path: '/spisaniya', permissionKey: 'spisaniya' },
+    { name: 'Стоп-лист', icon: Ban, path: '/stoplist', permissionKey: 'stoplist' },
+    { name: 'Заказы', icon: ShoppingCart, path: '/priemzk', permissionKey: 'priemzk' },
+    { name: 'Блюда', icon: UtensilsCrossed, path: '/bluda', permissionKey: 'bluda' },
+    { name: 'Склад', icon: Package, path: '/monit', permissionKey: 'monit' },
+    { name: 'Поставки', icon: Truck, path: '/priemps', permissionKey: 'prieemps' },
+  ];
 
-  ]
+  // ФИЛЬТРАЦИЯ: оставляем только те пункты, где роль пользователя разрешена
+  const visibleMenuItems = menuItems.filter(item => 
+    MENU_PERMISSIONS[item.permissionKey].includes(currentRole)
+  );
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    navigate('/', { replace: true })
-  }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/', { replace: true });
+  };
 
   return (
     <aside className="sidebar">
-      {/* Шапка сайдбара с логотипом */}
       <div className="sidebar-header">
         <div className="logo-icon">🍽️</div>
-        <span className="logo-text">RestoManager</span>
+        <div className="logo-text-container">
+          <span className="logo-text">RestoManager</span>
+          <span className="logo-role">{currentRole === 'admin' ? 'Администратор' : currentRole === 'manager' ? 'Менеджер' : 'Сотрудник'}</span>
+        </div>
       </div>
 
       <nav className="nav">
-        {menuItems.map((item) => {
-          const isActive = location.pathname === item.path
-          const IconComponent = item.icon
+        {visibleMenuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          const IconComponent = item.icon;
           
           return (
             <Link
@@ -58,11 +62,10 @@ const Sidebar = () => {
               <IconComponent size={20} strokeWidth={1.8} />
               <span className="nav-text">{item.name}</span>
             </Link>
-          )
+          );
         })}
       </nav>
 
-      {/* Кнопка выхода, прижатая к низу */}
       <div className="sidebar-footer">
         <button onClick={handleLogout} className="nav-link logout-btn">
           <LogOut size={20} strokeWidth={1.8} />
@@ -70,7 +73,7 @@ const Sidebar = () => {
         </button>
       </div>
     </aside>
-  )
-}
+  );
+};
 
-export default Sidebar
+export default Sidebar;
