@@ -587,3 +587,122 @@
   .notification { left: 1rem; right: 1rem; bottom: 1rem; }
   .modal-content { max-height: 95vh; }
 }
+
+/* ===== ИЗМЕНЕНИЯ РАСКЛАДКИ И МАСШТАБОВ ===== */
+
+/* Меняем пропорции сетки: боковая панель уже, основная часть шире */
+@media (min-width: 1024px) {
+  .supply-grid {
+    grid-template-columns: 300px 1fr; /* Сайдбар слева (или справа, зависит от порядка в HTML), основная часть занимает всё остальное */
+  }
+  
+  /* Если хочешь, чтобы сайдбар был справа, поменяй порядок в HTML или используй: */
+  /* grid-template-columns: 1fr 300px; */
+}
+
+/* Масштабирование карточки регистрации для боковой панели */
+.action-card-sidebar .card-body {
+  padding: 1.5rem 1rem;
+}
+
+.action-icon-sm {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1rem;
+}
+
+.action-icon-sm svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.action-title-sm {
+  font-size: 1.1rem;
+  margin-bottom: 0.4rem;
+}
+
+.action-desc-sm {
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+.submit-btn-sm {
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+
+.submit-btn-sm svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* ===== ИСТОРИЯ ПОСТАВОК НА ВЕСЬ ЭКРАН ===== */
+.history-card-full {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 600px; /* Гарантируем высоту */
+}
+
+.history-card-full .card-header {
+  flex-shrink: 0;
+}
+
+/* Убираем ограничение высоты и заставляем список занимать всё доступное место */
+.delivery-history-list.expanded {
+  max-height: none;
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+/* ===== СТИЛИ ДЛЯ КНОПОК СОРТИРОВКИ ===== */
+.sort-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sort-btn:hover {
+  border-color: #3b82f6;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.sort-btn.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+/* Адаптация шапки для мобильных устройств */
+@media (min-width: 1024px) {
+  .supply-grid {
+    grid-template-columns: 1fr 300px; 
+  }
+}
+  
+  .sort-controls {
+    width: 100%;
+  }
+  
+  .sort-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}

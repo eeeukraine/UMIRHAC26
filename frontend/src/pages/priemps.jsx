@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './priemps.css';
 import Sidebar from "../components/Sidebar.jsx";
 
-// 🌟 Вспомогательная функция: добавляет токен ко всем запросам
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
   return {
@@ -22,16 +21,17 @@ const SupplyReception = () => {
   });
   
   const [deliveries, setDeliveries] = useState([]);
-  const [stopList, setStopList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
 
-  // ЗАГРУЗКА ПОСТАВОК С БЭКЕНДА
+  // Состояние для сортировки
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+
   const loadDeliveries = async () => {
     try {
       const response = await fetch('http://localhost:8080/api/deliveries', {
-        headers: getAuthHeaders() // ✅ Добавлены заголовки с токеном
+        headers: getAuthHeaders()
       });
       if (!response.ok) throw new Error('Ошибка загрузки');
       const data = await response.json();
@@ -45,6 +45,35 @@ const SupplyReception = () => {
   useEffect(() => {
     loadDeliveries();
   }, []);
+
+  // Логика сортировки
+  const sortedDeliveries = useMemo(() => {
+    const sorted = [...deliveries];
+    sorted.sort((a, b) => {
+      if (sortConfig.key === 'date') {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      if (sortConfig.key === 'supplier') {
+        const nameA = (a.supplier || '').toLowerCase();
+        const nameB = (b.supplier || '').toLowerCase();
+        if (nameA < nameB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (nameA > nameB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      }
+      return 0;
+    });
+    return sorted;
+  }, [deliveries, sortConfig]);
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -71,7 +100,6 @@ const SupplyReception = () => {
     }));
   };
 
-  // ОТПРАВКА ПОСТАВКИ НА БЭКЕНД
   const handleManualSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -105,7 +133,7 @@ const SupplyReception = () => {
 
       const response = await fetch('http://localhost:8080/api/deliveries', {
         method: 'POST',
-        headers: getAuthHeaders(), // ✅ Добавлены заголовки с токеном
+        headers: getAuthHeaders(),
         body: JSON.stringify(deliveryData)
       });
 
@@ -115,7 +143,6 @@ const SupplyReception = () => {
       }
 
       await response.json();
-      
       setSuccessMessage('Поставка успешно зарегистрирована!');
       await loadDeliveries();
       
@@ -163,55 +190,31 @@ const SupplyReception = () => {
             </h1>
             <p className="supply-subtitle">Регистрация новых поставок и просмотр истории</p>
           </div>
-
           <div className="supply-grid">
+            
+            {/* ОСНОВНАЯ ЧАСТЬ: История поставок (Теперь СЛЕВА) */}
             <div className="supply-main">
-              <div className="card action-card">
-                <div className="card-body text-center">
-                  <div className="action-icon">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </div>
-                  <h2 className="action-title">Регистрация новой поставки</h2>
-                  <p className="action-desc">Загрузите данные из Excel-файла или введите информацию о поставке вручную</p>
-                  <button 
-                    onClick={() => setIsModalOpen(true)} 
-                    className="submit-btn"
-                  >
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>Новая поставка</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="supply-sidebar">
-              <div className="card">
-                <div className="card-header card-header-green">
-                  <h3>Статистика</h3>
-                </div>
-                <div className="card-body">
-                  <div className="stats-row">
-                    <span className="stats-label">Всего поставок</span>
-                    <span className="stats-value">{deliveries.length}</span>
-                  </div>
-                  <div className="stats-row">
-                    <span className="stats-label">В стоп-листе</span>
-                    <span className="stats-value danger">{stopList.length}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="card-header card-header-purple">
+              <div className="card history-card-full">
+                <div className="card-header card-header-blue">
                   <h3>История поставок</h3>
+                  <div className="sort-controls">
+                    <button 
+                      className={`sort-btn ${sortConfig.key === 'date' ? 'active' : ''}`}
+                      onClick={() => requestSort('date')}
+                    >
+                      По дате {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </button>
+                    <button 
+                      className={`sort-btn ${sortConfig.key === 'supplier' ? 'active' : ''}`}
+                      onClick={() => requestSort('supplier')}
+                    >
+                      По фирме {sortConfig.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </button>
+                  </div>
                 </div>
-                <div className="delivery-history-list">
-                  {deliveries.length > 0 ? (
-                    deliveries.map(delivery => (
+                <div className="delivery-history-list expanded">
+                  {sortedDeliveries.length > 0 ? (
+                    sortedDeliveries.map(delivery => (
                       <div key={delivery.id} className="delivery-item">
                         <div className="delivery-item-header">
                           <span className="delivery-supplier">{delivery.supplier}</span>
@@ -231,6 +234,31 @@ const SupplyReception = () => {
                 </div>
               </div>
             </div>
+
+            {/* БОКОВАЯ ПАНЕЛЬ: Регистрация новой поставки (Теперь СПРАВА) */}
+            <div className="supply-sidebar">
+              <div className="card action-card action-card-sidebar">
+                <div className="card-body text-center">
+                  <div className="action-icon action-icon-sm">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </div>
+                  <h2 className="action-title action-title-sm">Новая поставка</h2>
+                  <p className="action-desc action-desc-sm">Загрузите Excel или введите данные вручную</p>
+                  <button 
+                    onClick={() => setIsModalOpen(true)} 
+                    className="submit-btn submit-btn-sm"
+                  >
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Создать</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
 
           {successMessage && (
@@ -253,6 +281,7 @@ const SupplyReception = () => {
         </div>
       </main>
 
+      {/* Модальное окно остается без изменений */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -332,7 +361,7 @@ const SupplyReception = () => {
                       {formData.products.map((product, index) => (
                         <div key={index} className="product-item">
                           <div className="product-grid">
-                            <input type="text" value={product.name} onChange={(e) => handleProductChange(index, 'name', e.target.value)} placeholder="Название (точно как в базе)" className="product-input" required />
+                            <input type="text" value={product.name} onChange={(e) => handleProductChange(index, 'name', e.target.value)} placeholder="Название" className="product-input" required />
                             <input type="number" step="0.01" value={product.quantity} onChange={(e) => handleProductChange(index, 'quantity', e.target.value)} placeholder="Кол-во" className="product-input" required />
                             <div className="product-actions">
                               <select value={product.unit} onChange={(e) => handleProductChange(index, 'unit', e.target.value)} className="form-select">

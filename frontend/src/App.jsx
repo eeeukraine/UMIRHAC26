@@ -3,276 +3,340 @@ import { Link } from 'react-router-dom'
 import './App.css'
 import Sidebar from './components/Sidebar.jsx'
 
-const App = () => {
-  const menuItems = [
-    { name: 'Главная', icon: '', path: '/', active: true },
-    { name: 'Поставки', icon: '', path: '/priemps', active: false },
-    { name: 'Заказы', icon: '📋', path: '/priemzk', active: false },
-    { name: 'Склад', icon: '🏭', path: '/monit', active: false },
-    { name: 'Блюда', icon: '🍽️', path: '#', active: false },
-    { name: 'Стоп-лист', icon: '🚫', path: '#', active: false },
-    { name: 'Аналитика', icon: '', path: '#', active: false },
-    { name: 'Настройки', icon: '️', path: '#', active: false },
-  ]
-
-  const stats = [
-    { title: 'Всего продуктов', value: '248', change: '+12%', subtitle: 'на складе', color: 'emerald' },
-    { title: 'Ближайший срок', value: '3 дн.', subtitle: '7 продуктов', color: 'blue' },
-    { title: 'Активных заказов', value: '5', subtitle: 'сегодня', color: 'amber' },
-    { title: 'В стоп-листе', value: '3', subtitle: 'блюда', color: 'rose' },
-  ]
-
-  const expiringSoon = [
-    { name: 'Молоко 3.2%', date: '12.05.2025', days: 3, color: 'rose', emoji: '🥛' },
-    { name: 'Куриное филе', date: '13.05.2025', days: 4, color: 'amber', emoji: '🍗' },
-    { name: 'Салат айсберг', date: '14.05.2025', days: 5, color: 'yellow', emoji: '' },
-    { name: 'Помидоры черри', date: '15.05.2025', days: 6, color: 'green', emoji: '🍅' },
-  ]
-
-  const hotOffers = [
-    { name: 'Паста Карбонара', desc: 'Используются продукты с коротким сроком годности', priority: 'Высокий', prioClass: 'high', score: 95, emoji: '🍝' },
-    { name: 'Салат Цезарь', desc: 'Остатки: 2 порции курицы', priority: 'Средний', prioClass: 'med', score: 72, emoji: '' },
-    { name: 'Ризотто с грибами', desc: 'Остатки: 1 партия грибов', priority: 'Средний', prioClass: 'med', score: 68, emoji: '🍄' },
-  ]
-
-  const recentSupplies = [
-    { id: '№4587', date: '24.04.2025', supplier: 'ООО «ФудСервис»', items: 12 },
-    { id: '№4586', date: '22.04.2025', supplier: 'Мясной двор', items: 8 },
-    { id: '№4585', date: '20.04.2025', supplier: 'Овощи+', items: 15 },
-    { id: '№4584', date: '18.04.2025', supplier: 'Молочный мир', items: 6 },
-  ]
-
-  const lowStock = [
-    { name: 'Говядина', desc: 'для 3 блюд', qty: '2.5 кг', priority: 'Критично', prioClass: 'crit' },
-    { name: 'Сыр моцарелла', desc: 'для 2 блюд', qty: '1.2 кг', priority: 'Критично', prioClass: 'crit' },
-    { name: 'Базилик', desc: 'для 4 блюд', qty: '250 г', priority: 'Средне', prioClass: 'med' },
-    { name: 'Лимоны', desc: 'для 2 блюд', qty: '5 шт', priority: 'Средне', prioClass: 'med' },
-  ]
-
+const Dashboard = () => {
   return (
-    <div className="app">
-      <div className="layout">
-
-                <Sidebar />
-
-        {/* MAIN */}
-        <main className="main">
-          <div className="welcome">
-            <h1>Добро пожаловать, Алексей!</h1>
-            <p>Контролируйте остатки, сроки годности и заказы в одном месте.</p>
+    <div className="app-layout">
+      <Sidebar />
+      
+      <main className="dashboard-main">
+        <header className="dashboard-header">
+          <div className="header-content">
+            <h1 className="page-title">
+              <span className="title-gradient">Обзор системы</span>
+            </h1>
           </div>
-
-          {/* STATS */}
-          <div className="stats">
-            {stats.map((stat, idx) => (
-              <div key={idx} className="stat-card">
-                <div className={`stat-icon ${stat.color}`}>📦</div>
-                <p className="stat-title">{stat.title}</p>
-                <div className="stat-value-row">
-                  <p className="stat-value">{stat.value}</p>
-                  {stat.change && <span className="stat-change">{stat.change}</span>}
-                </div>
-                <p className="stat-subtitle">{stat.subtitle}</p>
-              </div>
-            ))}
+          <div className="header-actions">
+            <div className="date-badge">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <span>{new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+            </div>
           </div>
+        </header>
 
-          {/* CHARTS */}
-          <div className="charts">
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">Динамика остатков</h3>
-                <select className="card-select">
-                  <option>7 дней</option>
-                  <option>30 дней</option>
-                </select>
-              </div>
-              <div className="chart-box">
-                <svg viewBox="0 0 700 250" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#3b82f6" />
-                      <stop offset="100%" stopColor="#10b981" />
-                    </linearGradient>
-                  </defs>
-                  <polyline
-                    fill="none"
-                    stroke="url(#lineGrad)"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    points="40,180 140,165 240,190 340,172 440,155 540,168 640,152"
-                  />
-                  <circle cx="340" cy="172" r="5" fill="white" stroke="#3b82f6" strokeWidth="2" />
+        {/* KPI СЕТКА — только Склад и Заказы */}
+        <section className="kpi-grid kpi-grid-2">
+          <Link to="/monit" className="kpi-card kpi-clickable">
+            <div className="kpi-glow emerald"></div>
+            <div className="kpi-icon-wrapper emerald">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+            </div>
+            <div className="kpi-content">
+              <span className="kpi-label">Склад</span>
+              <span className="kpi-value">248</span>
+              <span className="kpi-subtitle">позиций на складе</span>
+              <div className="kpi-trend positive">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                  <polyline points="17 6 23 6 23 12"></polyline>
                 </svg>
-                <div className="chart-tooltip">
-                  <p>21.04</p>
-                  <p>Остаток: 128</p>
-                </div>
+                <span>+12% за неделю</span>
               </div>
             </div>
+            <div className="kpi-arrow">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </div>
+          </Link>
 
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">Статус продуктов</h3>
-              </div>
-              <div className="donut-wrap">
-                <svg className="donut-svg" viewBox="0 0 200 200">
-                  <circle cx="100" cy="100" r="80" stroke="#e2e8f0" strokeWidth="20" fill="none" />
-                  <circle cx="100" cy="100" r="80" stroke="#10b981" strokeWidth="20" fill="none"
-                    strokeDasharray="361 502" strokeLinecap="round" />
-                  <circle cx="100" cy="100" r="80" stroke="#f59e0b" strokeWidth="20" fill="none"
-                    strokeDasharray="90 502" strokeDashoffset="-361" strokeLinecap="round" />
-                  <circle cx="100" cy="100" r="80" stroke="#ef4444" strokeWidth="20" fill="none"
-                    strokeDasharray="51 502" strokeDashoffset="-451" strokeLinecap="round" />
+          <Link to="/priemzk" className="kpi-card kpi-clickable">
+            <div className="kpi-glow amber"></div>
+            <div className="kpi-icon-wrapper amber">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </div>
+            <div className="kpi-content">
+              <span className="kpi-label">Заказы</span>
+              <span className="kpi-value">5</span>
+              <span className="kpi-subtitle">активных заказов</span>
+              <div className="kpi-trend neutral">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
-                <div className="donut-center">
-                  <p className="donut-value">248</p>
-                  <p className="donut-label">всего</p>
-                </div>
+                <span>3 ожидают подтверждения</span>
               </div>
-              <div className="legend">
-                <div className="legend-row">
-                  <div className="legend-left">
-                    <span className="legend-dot green"></span>
-                    <span className="legend-text">Свежие</span>
-                  </div>
-                  <div className="legend-right">
-                    <span className="legend-pct">72%</span>
-                    <span className="legend-count">179</span>
-                  </div>
+            </div>
+            <div className="kpi-arrow">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </div>
+          </Link>
+        </section>
+
+        {/* ПОСЛЕДНЯЯ АКТИВНОСТЬ — теперь идёт ПЕРВОЙ */}
+        <section className="activity-section">
+          <div className="data-panel full-width">
+            <div className="panel-header">
+              <div className="panel-title-wrapper">
+                <div className="panel-icon info">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                  </svg>
                 </div>
-                <div className="legend-row">
-                  <div className="legend-left">
-                    <span className="legend-dot amber"></span>
-                    <span className="legend-text">Скоро истекают</span>
-                  </div>
-                  <div className="legend-right">
-                    <span className="legend-pct">18%</span>
-                    <span className="legend-count">45</span>
-                  </div>
+                <h3>Последняя активность</h3>
+              </div>
+              <div className="panel-tabs">
+                <Link to="/priemps" className="tab-link active">Поставки</Link>
+                <Link to="/priemzk" className="tab-link">Заказы</Link>
+              </div>
+            </div>
+            <div className="panel-body activity-list">
+              <div className="activity-row">
+                <div className="activity-icon blue">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="1" y="3" width="15" height="13"></rect>
+                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                    <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                    <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                  </svg>
                 </div>
-                <div className="legend-row">
-                  <div className="legend-left">
-                    <span className="legend-dot rose"></span>
-                    <span className="legend-text">Просроченные</span>
-                  </div>
-                  <div className="legend-right">
-                    <span className="legend-pct">10%</span>
-                    <span className="legend-count">24</span>
-                  </div>
+                <div className="activity-details">
+                  <span className="activity-title">Поставка №4587 принята</span>
+                  <span className="activity-meta">ООО «ФудСервис» • 12 позиций • Сегодня, 10:30</span>
                 </div>
+                <Link to="/priemps" className="activity-link">
+                  Детали
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </Link>
+              </div>
+              <div className="activity-row">
+                <div className="activity-icon amber">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                </div>
+                <div className="activity-details">
+                  <span className="activity-title">Создан заказ поставщику</span>
+                  <span className="activity-meta">Мясной двор • 8 позиций • Ожидает подтверждения • Сегодня, 09:15</span>
+                </div>
+                <Link to="/priemzk" className="activity-link">
+                  Детали
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </Link>
+              </div>
+              <div className="activity-row">
+                <div className="activity-icon rose">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                </div>
+                <div className="activity-details">
+                  <span className="activity-title">Автоматическое списание</span>
+                  <span className="activity-meta">Базилик свежий (0.5 кг) • Причина: Истек срок • Вчера, 09:15</span>
+                </div>
+                <Link to="/spisaniya" className="activity-link">
+                  Детали
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ЗОНЫ ДЕЙСТВИЯ — Критические остатки и Истекающий срок */}
+        <section className="action-grid">
+          <div className="data-panel">
+            <div className="panel-header">
+              <div className="panel-title-wrapper">
+                <div className="panel-icon critical">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                </div>
+                <h3>Критические остатки</h3>
+              </div>
+              <Link to="/stoplist" className="panel-link">
+                Стоп-лист
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </Link>
+            </div>
+            <div className="panel-body">
+              <div className="critical-item">
+                <div className="critical-badge critical">
+                  <span className="badge-dot"></span>
+                  <span>Критично</span>
+                </div>
+                <div className="critical-info">
+                  <span className="critical-name">Говядина мраморная</span>
+                  <span className="critical-desc">Остаток: 2.5 кг • Хватит на 3 блюда</span>
+                </div>
+                <Link to="/monit" className="critical-action">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                  </svg>
+                  Заказать
+                </Link>
+              </div>
+              <div className="critical-item">
+                <div className="critical-badge critical">
+                  <span className="badge-dot"></span>
+                  <span>Критично</span>
+                </div>
+                <div className="critical-info">
+                  <span className="critical-name">Сыр Моцарелла</span>
+                  <span className="critical-desc">Остаток: 1.2 кг • Хватит на 2 блюда</span>
+                </div>
+                <Link to="/monit" className="critical-action">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                  </svg>
+                  Заказать
+                </Link>
+              </div>
+              <div className="critical-item stopped">
+                <div className="critical-badge stopped">
+                  <span className="badge-dot"></span>
+                  <span>В стоп-листе</span>
+                </div>
+                <div className="critical-info">
+                  <span className="critical-name">Тигровые креветки</span>
+                  <span className="critical-desc">Нет на складе • 0 кг</span>
+                </div>
+                <Link to="/stoplist" className="critical-action secondary">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Снять
+                </Link>
               </div>
             </div>
           </div>
 
-          {/* TABLES */}
-          <div className="tables">
-            <div className="card">
-              <div className="card-header-row">
-                <h3 className="card-title">Последние поставки</h3>
-                <Link to="/priemps" className="card-link">Все →</Link>
-              </div>
-              <div className="row-list">
-                {recentSupplies.map((s) => (
-                  <div key={s.id} className="row-item">
-                    <div className="row-left">
-                      <div className="row-icon"></div>
-                      <div className="row-info">
-                        <p className="row-title">Поставка {s.id}</p>
-                        <p className="row-sub">{s.date} • {s.supplier}</p>
-                      </div>
-                    </div>
-                    <div className="row-right">
-                      <span className="row-items">+{s.items} позиций</span>
-                      <span className="badge-ok">Принята</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-header-row">
-                <h3 className="card-title">Недостаточные ингредиенты</h3>
-                <Link to="/monit" className="card-link">Все →</Link>
-              </div>
-              <div className="row-list">
-                {lowStock.map((item, idx) => (
-                  <div key={idx} className="row-item">
-                    <div className="row-left">
-                      <div className="row-icon emoji">🥩</div>
-                      <div className="row-info">
-                        <p className="row-title">{item.name}</p>
-                        <p className="row-sub">{item.desc}</p>
-                      </div>
-                    </div>
-                    <div className="row-right">
-                      <span className="row-items">{item.qty}</span>
-                      <span className={item.prioClass === 'crit' ? 'badge-crit' : 'badge-med'}>
-                        {item.priority}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </main>
-
-        {/* RIGHT SIDEBAR */}
-        <aside className="right-side">
-          <div className="side-card">
-            <div className="side-card-head">
-              <div className="side-card-head-left">
-                <div className="side-icon rose">⏰</div>
-                <h3 className="side-card-title">Скоро истекают</h3>
-              </div>
-              <span className="side-badge">7</span>
-            </div>
-            <div className="side-list">
-              {expiringSoon.map((item, idx) => (
-                <div key={idx} className="side-item">
-                  <div className="side-item-icon">{item.emoji}</div>
-                  <div className="side-item-body">
-                    <p className="side-item-title">{item.name}</p>
-                    <p className="side-item-sub">{item.date}</p>
-                  </div>
-                  <span className={`side-item-days ${item.color}`}>{item.days} дн.</span>
+          <div className="data-panel">
+            <div className="panel-header">
+              <div className="panel-title-wrapper">
+                <div className="panel-icon warning">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
                 </div>
-              ))}
+                <h3>Истекающий срок годности</h3>
+              </div>
+              <Link to="/spisaniya" className="panel-link">
+                Все списания
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </Link>
             </div>
-          </div>
-
-          <div className="side-card">
-            <div className="side-card-head">
-              <div className="side-card-head-left">
-                <div className="side-icon orange">🔥</div>
-                <h3 className="side-card-title">Горячие предложения</h3>
+            <div className="panel-body">
+              <div className="expiring-item">
+                <div className="expiring-days bad">
+                  <span className="days-value">3</span>
+                  <span className="days-label">дн.</span>
+                </div>
+                <div className="expiring-info">
+                  <span className="expiring-name">Молоко 3.2%</span>
+                  <span className="expiring-desc">Партия №201 • 15 л • Молочный мир</span>
+                </div>
+                <Link to="/spisaniya" className="expiring-action">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                  </svg>
+                  Использовать
+                </Link>
+              </div>
+              <div className="expiring-item">
+                <div className="expiring-days warning">
+                  <span className="days-value">4</span>
+                  <span className="days-label">дн.</span>
+                </div>
+                <div className="expiring-info">
+                  <span className="expiring-name">Куриное филе</span>
+                  <span className="expiring-desc">Партия №301 • 12 кг • Мясной двор</span>
+                </div>
+                <Link to="/spisaniya" className="expiring-action">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                  </svg>
+                  Использовать
+                </Link>
+              </div>
+              <div className="expiring-item">
+                <div className="expiring-days warning">
+                  <span className="days-value">5</span>
+                  <span className="days-label">дн.</span>
+                </div>
+                <div className="expiring-info">
+                  <span className="expiring-name">Салат Айсберг</span>
+                  <span className="expiring-desc">Партия №112 • 4 кг • Овощи+</span>
+                </div>
+                <Link to="/spisaniya" className="expiring-action">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                  </svg>
+                  Использовать
+                </Link>
               </div>
             </div>
-            <div className="side-list">
-              {hotOffers.map((offer, idx) => (
-                <div key={idx} className="side-item">
-                  <div className="side-item-icon big">{offer.emoji}</div>
-                  <div className="side-item-body">
-                    <p className="side-item-title">{offer.name}</p>
-                    <p className="side-item-sub">{offer.desc}</p>
-                    <span className={`side-item-prio ${offer.prioClass}`}>
-                      {offer.priority} приоритет
-                    </span>
-                  </div>
-                  <div className="side-item-score">
-                    <span>{offer.score}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
-        </aside>
-      </div>
+        </section>
+      </main>
     </div>
   )
 }
 
-export default App
+export default Dashboard
