@@ -10,21 +10,14 @@ const getAuthHeaders = () => {
   };
 };
 
-// 🛡️ СЕРЕБРЯНАЯ ПУЛЯ: Получает локальную дату в формате YYYY-MM-DD без сдвигов UTC
 const getLocalTodayStr = () => {
-  return new Date().toLocaleDateString('sv-SE'); // 'sv-SE' всегда возвращает YYYY-MM-DD
+  return new Date().toLocaleDateString('sv-SE');
 };
 
-// 🛡️ СЕРЕБРЯНАЯ ПУЛЯ: Проверяет, просрочена ли дата (включая сегодня)
 const isExpired = (dateStr) => {
   if (!dateStr) return false;
-  // Берём только первые 10 символов (YYYY-MM-DD), отбрасывая время, если оно есть
   const cleanDate = String(dateStr).substring(0, 10);
   const today = getLocalTodayStr();
-  
-  // 🔍 ОТЛАДКА: Раскомментируй строку ниже, чтобы увидеть в консоли, что сравнивается
-  // console.log(`Сравниваем: ${cleanDate} <= ${today} ? Результат: ${cleanDate <= today}`);
-  
   return cleanDate <= today;
 };
 
@@ -50,9 +43,6 @@ const Spisaniya = () => {
       const productsRes = await fetch('http://localhost:8080/api/warehouse/products', { headers })
       const products = await productsRes.json()
       
-      const expiringRes = await fetch('http://localhost:8080/api/warehouse/expiring?days=30', { headers })
-      const expiringBatches = await expiringRes.json()
-      
       const formattedProducts = products.map(product => ({
         id: product.id,
         name: product.name,
@@ -76,29 +66,69 @@ const Spisaniya = () => {
         }))
       )
       
-      // ✅ ИСПОЛЬЗУЕМ НАШУ НАДЁЖНУЮ ФУНКЦИЮ isExpired
-      const generatedHistory = expiringBatches
-        .filter(batch => isExpired(batch.expirationDate))
-        .map((batch, idx) => ({
-          id: idx + 1,
-          type: 'auto',
-          productName: batch.productName,
-          batchId: batch.id,
-          quantity: batch.quantity,
-          unit: batch.unit,
-          reason: 'Истек срок годности',
-          date: new Date(batch.expirationDate).toLocaleString('ru-RU'),
-          status: 'completed'
-        }))
+      // ✅ ЗАГРУЖАЕМ ТОЛЬКО РЕАЛЬНУЮ ИСТОРИЮ (без авто-генерации просрочки)
+      // Если есть эндпоинт, раскомментируй:
+      // const historyRes = await fetch('http://localhost:8080/api/writeoffs', { headers })
+      // const history = await historyRes.json()
+      const history = [] // Пока пустой массив для демо
       
       setProductsData(formattedProducts)
       setAllBatches(allBatchesFlat.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate)))
-      setWriteOffHistory(generatedHistory)
+      setWriteOffHistory(history)
       
     } catch (err) {
       console.error('Ошибка загрузки данных:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // ✅ НОВАЯ ФУНКЦИЯ: Ручное подтверждение списания просроченной партии
+  const handleWriteOffBatch = async (batch) => {
+    if (!window.confirm(`Вы уверены, что хотите списать партию "${batch.productName}" (${batch.quantity} ${batch.productUnit})?\nПричина: Истек срок годности`)) {
+      return;
+    }
+
+    try {
+      // ✅ ЗДЕСЬ ДОЛЖЕН БЫТЬ РЕАЛЬНЫЙ ЗАПРОС НА БЭКЕНД:
+      /*
+      const response = await fetch('http://localhost:8080/api/writeoffs', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          batchId: batch.id,
+          quantity: batch.quantity,
+          reason: 'Истек срок годности (подтверждено оператором)'
+        })
+      });
+      if (!response.ok) throw new Error('Ошибка сервера');
+      */
+
+      // Локальное обновление UI для мгновенного отклика
+      const newWriteOff = {
+        id: Date.now(),
+        type: 'auto-confirmed', // Специальный тип: авто-обнаружено, но подтверждено вручную
+        productName: batch.productName,
+        batchId: batch.id,
+        quantity: batch.quantity,
+        unit: batch.productUnit,
+        reason: 'Истек срок годности (подтверждено)',
+        date: new Date().toLocaleString('ru-RU'),
+        status: 'completed'
+      }
+      
+      setWriteOffHistory(prev => [newWriteOff, ...prev])
+      
+      // Удаляем партию из активных списков
+      setAllBatches(prev => prev.filter(b => b.id !== batch.id))
+      setProductsData(prev => prev.map(p => ({
+        ...p,
+        batches: p.batches.filter(b => b.id !== batch.id)
+      })))
+      
+    } catch (err) {
+      console.error('Ошибка при списании:', err)
+      alert('Не удалось выполнить списание. Проверьте подключение.')
     }
   }
 
@@ -108,7 +138,7 @@ const Spisaniya = () => {
 
   const filteredHistory = useMemo(() => {
     let result = writeOffHistory
-    if (filter !== 'all') result = result.filter(item => item.type === filter)
+    if (filter !== 'all') result = result.filter(item => item.type === filter || (filter === 'auto' && item.type === 'auto-confirmed'))
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       result = result.filter(item => 
@@ -119,13 +149,11 @@ const Spisaniya = () => {
   }, [filter, searchQuery, writeOffHistory])
 
   const stats = useMemo(() => {
-    // ✅ ИСПОЛЬЗУЕМ НАШУ НАДЁЖНУЮ ФУНКЦИЮ isExpired
     const expiredBatches = allBatches.filter(b => isExpired(b.expirationDate))
     
     const expiringSoon = allBatches.filter(b => {
       const expDate = new Date(b.expirationDate);
       const today = new Date();
-      // Сбрасываем время для корректного сравнения дней
       expDate.setHours(0,0,0,0);
       today.setHours(0,0,0,0);
       const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
@@ -137,7 +165,8 @@ const Spisaniya = () => {
       expiredCount: expiredBatches.length,
       expiringSoonCount: expiringSoon.length,
       totalWriteOffs: writeOffHistory.length,
-      autoWriteOffs: writeOffHistory.filter(w => w.type === 'auto').length,
+      // Считаем и 'auto', и 'auto-confirmed' как автоматические по происхождению
+      autoWriteOffs: writeOffHistory.filter(w => w.type === 'auto' || w.type === 'auto-confirmed').length,
       manualWriteOffs: writeOffHistory.filter(w => w.type === 'manual').length
     }
   }, [allBatches, writeOffHistory])
@@ -166,7 +195,6 @@ const Spisaniya = () => {
       let filteredBatches = allBatches;
       
       if (expandedCard === 'expired') {
-        // ✅ ИСПОЛЬЗУЕМ НАШУ НАДЁЖНУЮ ФУНКЦИЮ isExpired
         filteredBatches = allBatches.filter(b => isExpired(b.expirationDate));
       } else if (expandedCard === 'expiring') {
         filteredBatches = allBatches.filter(b => {
@@ -190,9 +218,13 @@ const Spisaniya = () => {
             <div className="batches-list">
               {productBatches.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate)).map((batch, idx) => {
                 const status = getExpirationStatus(batch.expirationDate);
+                const isExpiredBatch = isExpired(batch.expirationDate);
+                
                 return (
-                  <div key={batch.id} className={`batch-item ${idx === 0 && expandedCard === 'batches' ? 'fifo-first' : ''}`}>
-                    {idx === 0 && expandedCard === 'batches' && <span className="fifo-badge">FIFO</span>}
+                  <div key={batch.id} className={`batch-item ${isExpiredBatch ? 'batch-item-expired-action' : (idx === 0 && expandedCard === 'batches' ? 'fifo-first' : '')}`}>
+                    {idx === 0 && expandedCard === 'batches' && !isExpiredBatch && <span className="fifo-badge">FIFO</span>}
+                    {isExpiredBatch && <span className="fifo-badge expired-badge">ПРОСРОЧЕНО</span>}
+                    
                     <div className="batch-info">
                       <div className="batch-quantity">
                         <span className="quantity-value">{batch.quantity}</span>
@@ -203,11 +235,26 @@ const Spisaniya = () => {
                         <span className="batch-date">Поставка: {new Date(batch.deliveryDate).toLocaleDateString('ru-RU')}</span>
                       </div>
                     </div>
+                    
                     <div className={`batch-expiration ${status.class}`}>
                       <span className="expiration-label">Годен до:</span>
                       <span className="expiration-date">{new Date(batch.expirationDate).toLocaleDateString('ru-RU')}</span>
                       <span className="expiration-days" style={{ color: status.color }}>{status.label}</span>
                     </div>
+
+                    {/* ✅ КНОПКА СПИСАНИЯ ТОЛЬКО ДЛЯ ПРОСРОЧЕННЫХ */}
+                    {isExpiredBatch && (
+                      <button 
+                        className="btn-write-off"
+                        onClick={() => handleWriteOffBatch(batch)}
+                        title="Подтвердить списание"
+                      >
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span>Списать</span>
+                      </button>
+                    )}
                   </div>
                 )
               })}
@@ -256,7 +303,7 @@ const Spisaniya = () => {
             {filteredHistory.length > 0 ? filteredHistory.map(item => (
               <div key={item.id} className={`writeoff-item type-${item.type}`}>
                 <div className="writeoff-icon">
-                  {item.type === 'auto' ? (
+                  {item.type === 'auto' || item.type === 'auto-confirmed' ? (
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
@@ -270,7 +317,7 @@ const Spisaniya = () => {
                   <div className="writeoff-header">
                     <h4 className="writeoff-product">{item.productName}</h4>
                     <span className={`writeoff-type-badge type-${item.type}`}>
-                      {item.type === 'auto' ? 'Авто' : 'Ручное'}
+                      {item.type === 'auto-confirmed' ? 'Подтверждено' : item.type === 'auto' ? 'Авто' : 'Ручное'}
                     </span>
                   </div>
                   <p className="writeoff-reason">{item.reason}</p>
@@ -300,7 +347,7 @@ const Spisaniya = () => {
   const getPanelTitle = () => {
     switch(expandedCard) {
       case 'batches': return '📦 Все партии продуктов';
-      case 'expired': return '⚠️ Просроченные партии (Требуют внимания)';
+      case 'expired': return '⚠️ Просроченные партии (Требуют подтверждения списания)';
       case 'expiring': return '⏳ Истекающие партии (≤ 3 дней)';
       case 'writeoffs': return '📝 Полная история списаний';
       default: return '';
@@ -334,7 +381,7 @@ const Spisaniya = () => {
               Списания и партии
             </h1>
             <p className="page-subtitle">
-              Нажмите на карточку ниже, чтобы просмотреть детальную информацию.
+              Нажмите на карточку ниже, чтобы просмотреть детальную информацию и подтвердить списания.
             </p>
           </div>
 
@@ -388,7 +435,7 @@ const Spisaniya = () => {
                 <p className="stat-label">Всего списаний</p>
                 <p className="stat-value">{stats.totalWriteOffs}</p>
                 <p className="stat-subtext">
-                  <span className="text-auto">{stats.autoWriteOffs} авто</span>
+                  <span className="text-auto">{stats.autoWriteOffs} по сроку</span>
                   <span className="text-separator">•</span>
                   <span className="text-manual">{stats.manualWriteOffs} ручных</span>
                 </p>
