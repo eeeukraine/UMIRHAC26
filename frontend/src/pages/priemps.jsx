@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './priemps.css';
 import Sidebar from "../components/Sidebar.jsx";
 
-// 🌟 Вспомогательная функция: добавляет токен ко всем запросам
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
   return {
@@ -22,16 +21,18 @@ const SupplyReception = () => {
   });
   
   const [deliveries, setDeliveries] = useState([]);
-  const [stopList, setStopList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
 
-  // ЗАГРУЗКА ПОСТАВОК С БЭКЕНДА
+  // Состояние для сортировки и фильтрации
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+  const [activeFilter, setActiveFilter] = useState('all'); // all, pending, accepted, rejected
+
   const loadDeliveries = async () => {
     try {
       const response = await fetch('http://localhost:8080/api/deliveries', {
-        headers: getAuthHeaders() // ✅ Добавлены заголовки с токеном
+        headers: getAuthHeaders()
       });
       if (!response.ok) throw new Error('Ошибка загрузки');
       const data = await response.json();
@@ -45,6 +46,97 @@ const SupplyReception = () => {
   useEffect(() => {
     loadDeliveries();
   }, []);
+
+  // Логика сортировки
+  const sortedDeliveries = useMemo(() => {
+    const sorted = [...deliveries];
+    sorted.sort((a, b) => {
+      if (sortConfig.key === 'date') {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      if (sortConfig.key === 'supplier') {
+        const nameA = (a.supplier || '').toLowerCase();
+        const nameB = (b.supplier || '').toLowerCase();
+        if (nameA < nameB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (nameA > nameB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      }
+      return 0;
+    });
+    return sorted;
+  }, [deliveries, sortConfig]);
+
+  // Логика фильтрации
+  const filteredDeliveries = useMemo(() => {
+    return sortedDeliveries.filter(delivery => {
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'pending') return delivery.status === 'Ожидает' || delivery.status === 'pending' || delivery.status === 'new';
+      if (activeFilter === 'accepted') return delivery.status === 'Принята';
+      if (activeFilter === 'rejected') return delivery.status === 'Отклонена';
+      return true;
+    });
+  }, [sortedDeliveries, activeFilter]);
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // ✅ ОДОБРЕНИЕ ВХОДЯЩЕЙ ПОСТАВКИ
+  const handleApproveDelivery = async (id) => {
+    if (!window.confirm('Вы уверены, что хотите одобрить эту поставку?')) return;
+    
+    try {
+      const response = await fetch(`http://localhost:8080/api/deliveries/${id}/status`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: 'Принята' })
+      });
+      
+      if (response.ok) {
+        setSuccessMessage('Поставка успешно одобрена!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        await loadDeliveries();
+      } else {
+        throw new Error('Ошибка сервера');
+      }
+    } catch (err) {
+      console.error('Ошибка:', err);
+      setError('Не удалось одобрить поставку');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  // ✅ ОТКЛОНЕНИЕ ВХОДЯЩЕЙ ПОСТАВКИ
+  const handleRejectDelivery = async (id) => {
+    const reason = window.prompt('Укажите причину отклонения поставки (необязательно):');
+    if (reason === null) return; // Пользователь нажал "Отмена" в окне ввода
+    
+    try {
+      const response = await fetch(`http://localhost:8080/api/deliveries/${id}/status`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: 'Отклонена', rejectionReason: reason || 'Без причины' })
+      });
+      
+      if (response.ok) {
+        setSuccessMessage('Поставка отклонена.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        await loadDeliveries();
+      } else {
+        throw new Error('Ошибка сервера');
+      }
+    } catch (err) {
+      console.error('Ошибка:', err);
+      setError('Не удалось отклонить поставку');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -71,7 +163,6 @@ const SupplyReception = () => {
     }));
   };
 
-  // ОТПРАВКА ПОСТАВКИ НА БЭКЕНД
   const handleManualSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -91,7 +182,7 @@ const SupplyReception = () => {
       const deliveryData = {
         supplier: formData.supplierName,
         date: formData.deliveryDate,
-        status: "Принята",
+        status: "Принята", // Ручные поставки сразу принимаем
         items: validProducts.map(p => ({
           productId: null,
           productName: p.name,
@@ -105,7 +196,7 @@ const SupplyReception = () => {
 
       const response = await fetch('http://localhost:8080/api/deliveries', {
         method: 'POST',
-        headers: getAuthHeaders(), // ✅ Добавлены заголовки с токеном
+        headers: getAuthHeaders(),
         body: JSON.stringify(deliveryData)
       });
 
@@ -115,7 +206,6 @@ const SupplyReception = () => {
       }
 
       await response.json();
-      
       setSuccessMessage('Поставка успешно зарегистрирована!');
       await loadDeliveries();
       
@@ -161,76 +251,129 @@ const SupplyReception = () => {
               </svg>
               Управление поставками
             </h1>
-            <p className="supply-subtitle">Регистрация новых поставок и просмотр истории</p>
+            <p className="supply-subtitle">Регистрация новых поставок, одобрение входящих запросов и просмотр истории</p>
           </div>
-
+          
           <div className="supply-grid">
+            
+            {/* ОСНОВНАЯ ЧАСТЬ: История поставок и входящие запросы */}
             <div className="supply-main">
-              <div className="card action-card">
+              <div className="card history-card-full">
+                <div className="card-header card-header-blue">
+                  <h3>История поставок</h3>
+                  <div className="sort-controls">
+                    <button 
+                      className={`sort-btn ${sortConfig.key === 'date' ? 'active' : ''}`}
+                      onClick={() => requestSort('date')}
+                    >
+                      По дате {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </button>
+                    <button 
+                      className={`sort-btn ${sortConfig.key === 'supplier' ? 'active' : ''}`}
+                      onClick={() => requestSort('supplier')}
+                    >
+                      По фирме {sortConfig.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Фильтры по статусу */}
+                <div className="filter-tabs-container">
+                  <div className="filter-tabs">
+                    <button className={`filter-tab ${activeFilter === 'all' ? 'active' : ''}`} onClick={() => setActiveFilter('all')}>
+                      Все ({deliveries.length})
+                    </button>
+                    <button className={`filter-tab ${activeFilter === 'pending' ? 'active' : ''}`} onClick={() => setActiveFilter('pending')}>
+                      Ожидают решения ({deliveries.filter(d => d.status === 'Ожидает' || d.status === 'pending' || d.status === 'new').length})
+                    </button>
+                    <button className={`filter-tab ${activeFilter === 'accepted' ? 'active' : ''}`} onClick={() => setActiveFilter('accepted')}>
+                      Принятые ({deliveries.filter(d => d.status === 'Принята').length})
+                    </button>
+                    <button className={`filter-tab ${activeFilter === 'rejected' ? 'active' : ''}`} onClick={() => setActiveFilter('rejected')}>
+                      Отклоненные ({deliveries.filter(d => d.status === 'Отклонена').length})
+                    </button>
+                  </div>
+                </div>
+
+                <div className="delivery-history-list expanded">
+                  {filteredDeliveries.length > 0 ? (
+                    filteredDeliveries.map(delivery => {
+                      // Определяем, является ли поставка входящим запросом, требующим решения
+                      const isPending = delivery.status === 'Ожидает' || delivery.status === 'pending' || delivery.status === 'new';
+                      const statusClass = delivery.status === 'Принята' ? 'accepted' : delivery.status === 'Отклонена' ? 'rejected' : 'pending';
+                      const statusText = isPending ? 'Ожидает решения' : delivery.status;
+
+                      return (
+                        <div key={delivery.id} className={`delivery-item ${isPending ? 'delivery-item-pending' : ''}`}>
+                          <div className="delivery-item-header">
+                            <span className="delivery-supplier">{delivery.supplier}</span>
+                            <span className={`delivery-status status-${statusClass}`}>
+                              {statusText}
+                            </span>
+                          </div>
+                          <div className="delivery-item-details">
+                            <span>{delivery.date}</span>
+                            <span>{delivery.totalItems || delivery.items?.length || 0} позиций</span>
+                          </div>
+                          
+                          {/* Отображение причины отклонения, если она есть */}
+                          {delivery.rejectionReason && (
+                            <div className="delivery-rejection-reason">
+                              <strong>Причина:</strong> {delivery.rejectionReason}
+                            </div>
+                          )}
+
+                          {/* Кнопки действий только для ожидающих поставок */}
+                          {isPending && (
+                            <div className="delivery-actions">
+                              <button className="btn-approve" onClick={() => handleApproveDelivery(delivery.id)}>
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Одобрить
+                              </button>
+                              <button className="btn-reject" onClick={() => handleRejectDelivery(delivery.id)}>
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Отклонить
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="empty-text">Поставок по выбранному фильтру пока нет</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* БОКОВАЯ ПАНЕЛЬ: Регистрация новой поставки вручную */}
+            <div className="supply-sidebar">
+              <div className="card action-card action-card-sidebar">
                 <div className="card-body text-center">
-                  <div className="action-icon">
+                  <div className="action-icon action-icon-sm">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                   </div>
-                  <h2 className="action-title">Регистрация новой поставки</h2>
-                  <p className="action-desc">Загрузите данные из Excel-файла или введите информацию о поставке вручную</p>
+                  <h2 className="action-title action-title-sm">Новая поставка</h2>
+                  <p className="action-desc action-desc-sm">Загрузите Excel или введите данные вручную</p>
                   <button 
                     onClick={() => setIsModalOpen(true)} 
-                    className="submit-btn"
+                    className="submit-btn submit-btn-sm"
                   >
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>Новая поставка</span>
+                    <span>Создать</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="supply-sidebar">
-              <div className="card">
-                <div className="card-header card-header-green">
-                  <h3>Статистика</h3>
-                </div>
-                <div className="card-body">
-                  <div className="stats-row">
-                    <span className="stats-label">Всего поставок</span>
-                    <span className="stats-value">{deliveries.length}</span>
-                  </div>
-                  <div className="stats-row">
-                    <span className="stats-label">В стоп-листе</span>
-                    <span className="stats-value danger">{stopList.length}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="card-header card-header-purple">
-                  <h3>История поставок</h3>
-                </div>
-                <div className="delivery-history-list">
-                  {deliveries.length > 0 ? (
-                    deliveries.map(delivery => (
-                      <div key={delivery.id} className="delivery-item">
-                        <div className="delivery-item-header">
-                          <span className="delivery-supplier">{delivery.supplier}</span>
-                          <span className={`delivery-status status-${delivery.status === 'Принята' ? 'accepted' : 'pending'}`}>
-                            {delivery.status}
-                          </span>
-                        </div>
-                        <div className="delivery-item-details">
-                          <span>{delivery.date}</span>
-                          <span>{delivery.totalItems || delivery.items?.length || 0} позиций</span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="empty-text">Поставок пока нет</p>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
 
           {successMessage && (
@@ -253,6 +396,7 @@ const SupplyReception = () => {
         </div>
       </main>
 
+      {/* Модальное окно (без изменений) */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -332,7 +476,7 @@ const SupplyReception = () => {
                       {formData.products.map((product, index) => (
                         <div key={index} className="product-item">
                           <div className="product-grid">
-                            <input type="text" value={product.name} onChange={(e) => handleProductChange(index, 'name', e.target.value)} placeholder="Название (точно как в базе)" className="product-input" required />
+                            <input type="text" value={product.name} onChange={(e) => handleProductChange(index, 'name', e.target.value)} placeholder="Название" className="product-input" required />
                             <input type="number" step="0.01" value={product.quantity} onChange={(e) => handleProductChange(index, 'quantity', e.target.value)} placeholder="Кол-во" className="product-input" required />
                             <div className="product-actions">
                               <select value={product.unit} onChange={(e) => handleProductChange(index, 'unit', e.target.value)} className="form-select">

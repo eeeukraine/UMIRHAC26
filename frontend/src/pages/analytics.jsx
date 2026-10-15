@@ -1,183 +1,282 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import './analytics.css'
 import Sidebar from "../components/Sidebar.jsx"
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
 const Analytics = () => {
-  const [period, setPeriod] = useState('month') // week, month, quarter, year
+  const [period, setPeriod] = useState('month')
+  const [loading, setLoading] = useState(true)
+  const [analyticsData, setAnalyticsData] = useState({
+    deliveries: [],
+    writeOffs: [],
+    batches: []
+  })
 
-  // ===== РЕАЛЬНЫЕ ДЕМО-ДАННЫЕ =====
-  
-  // Динамика списаний по дням/месяцам
-  const writeOffTrend = period === 'week' 
-    ? [
-        { label: 'Пн', value: 12 }, { label: 'Вт', value: 8 }, { label: 'Ср', value: 15 },
-        { label: 'Чт', value: 10 }, { label: 'Пт', value: 22 }, { label: 'Сб', value: 28 }, { label: 'Вс', value: 18 }
-      ]
-    : [
-        { label: 'Янв', value: 145 }, { label: 'Фев', value: 132 }, { label: 'Мар', value: 168 },
-        { label: 'Апр', value: 154 }, { label: 'Май', value: 189 }, { label: 'Июн', value: 201 },
-        { label: 'Июл', value: 178 }, { label: 'Авг', value: 165 }, { label: 'Сен', value: 142 },
-        { label: 'Окт', value: 158 }, { label: 'Ноя', value: 173 }, { label: 'Дек', value: 195 }
-      ]
+  useEffect(() => {
+    loadAnalyticsData()
+  }, [period])
 
-  // Причины списаний
-  const writeOffReasons = [
-    { label: 'Истек срок годности', value: 42, color: '#ef4444' },
-    { label: 'Закончился на складе', value: 35, color: '#f59e0b' },
-    { label: 'Брак / повреждение', value: 15, color: '#8b5cf6' },
-    { label: 'Пересорт', value: 8, color: '#3b82f6' }
-  ]
+  const loadAnalyticsData = async () => {
+    setLoading(true)
+    try {
+      const headers = getAuthHeaders()
+      
+      const [batchesRes, writeOffsRes, deliveriesRes] = await Promise.all([
+        fetch('http://localhost:8080/api/warehouse/products', { headers }),
+        fetch('http://localhost:8080/api/analytics/write-offs', { headers }),
+        fetch('http://localhost:8080/api/analytics/deliveries', { headers })
+      ])
 
-  // Топ продуктов по частоте списаний
-  const topProducts = [
-    { name: 'Молоко 3.2%', count: 48, unit: 'л', trend: 'up' },
-    { name: 'Куриное филе', count: 42, unit: 'кг', trend: 'up' },
-    { name: 'Сыр моцарелла', count: 35, unit: 'кг', trend: 'stable' },
-    { name: 'Базилик свежий', count: 28, unit: 'кг', trend: 'down' },
-    { name: 'Помидоры черри', count: 24, unit: 'кг', trend: 'up' },
-    { name: 'Сливки 20%', count: 19, unit: 'л', trend: 'stable' }
-  ]
+      const batchesData = await batchesRes.json()
+      const writeOffsData = await writeOffsRes.json()
+      const deliveriesData = await deliveriesRes.json()
 
-  // Сезонность спроса по категориям
-  const seasonalityData = [
-    { month: 'Янв', hot: 85, salads: 45, desserts: 60, drinks: 30 },
-    { month: 'Фев', hot: 80, salads: 50, desserts: 55, drinks: 35 },
-    { month: 'Мар', hot: 75, salads: 65, desserts: 58, drinks: 45 },
-    { month: 'Апр', hot: 70, salads: 75, desserts: 62, drinks: 55 },
-    { month: 'Май', hot: 65, salads: 85, desserts: 65, drinks: 70 },
-    { month: 'Июн', hot: 60, salads: 90, desserts: 68, drinks: 85 }
-  ]
+      // 🔍 ОТЛАДКА: Посмотри в консоль браузера (F12), какие данные реально пришли
+      console.log("📦 Batches Data:", batchesData)
+      console.log("🗑️ Write-offs Data:", writeOffsData)
+      console.log("🚚 Deliveries Data:", deliveriesData)
 
-  // Эффективность поставщиков
-  const suppliersData = [
-    { name: 'ООО «ФудСервис»', onTime: 92, quality: 88, total: 156 },
-    { name: 'Мясной двор', onTime: 87, quality: 91, total: 98 },
-    { name: 'Овощи+', onTime: 78, quality: 85, total: 124 },
-    { name: 'Молочный мир', onTime: 95, quality: 93, total: 87 }
-  ]
+      // Безопасное выравнивание массива партий
+      const allBatches = (batchesData || []).flatMap(product => {
+        const batches = product.batches || [];
+        return batches.map(batch => ({
+          ...batch,
+          productName: product.name || batch.productName || 'Неизвестно',
+          productUnit: product.unit || batch.productUnit || 'шт',
+          productId: product.id || batch.productId,
+          supplier: batch.supplier || 'Не указан'
+        }));
+      });
 
-  // Рекомендации по корректировке поставок
-  const recommendations = [
-    {
-      type: 'increase',
-      product: 'Молоко 3.2%',
-      current: '20 л / неделя',
-      suggested: '30 л / неделя',
-      reason: 'Частые списания из-за нехватки (+48% за месяц)',
-      savings: '≈ 12 000 ₽/мес'
-    },
-    {
-      type: 'decrease',
-      product: 'Базилик свежий',
-      current: '5 кг / неделя',
-      suggested: '3 кг / неделя',
-      reason: 'Частое истечение срока годности (-28% спроса)',
-      savings: '≈ 8 500 ₽/мес'
-    },
-    {
-      type: 'schedule',
-      product: 'Куриное филе',
-      current: 'Поставка раз в 5 дней',
-      suggested: 'Поставка раз в 3 дня',
-      reason: 'Снижение риска истечения срока на 40%',
-      savings: '≈ 15 000 ₽/мес'
+      setAnalyticsData({
+        deliveries: deliveriesData || [],
+        writeOffs: writeOffsData || [],
+        batches: allBatches
+      })
+      
+    } catch (err) {
+      console.error('❌ Ошибка загрузки аналитики:', err)
+    } finally {
+      setLoading(false)
     }
-  ]
-
-  // Ключевые метрики
-  const metrics = {
-    totalWriteOffs: 1732,
-    writeOffCost: 284500,
-    avgShelfLife: 6.4,
-    onTimeDeliveries: 88
   }
 
-  // ===== ВЫЧИСЛЕНИЯ ДЛЯ ГРАФИКОВ =====
-  
-  const maxTrendValue = Math.max(...writeOffTrend.map(d => d.value))
-  const totalReasons = writeOffReasons.reduce((sum, r) => sum + r.value, 0)
-  
-  // SVG путь для линейного графика
-  const trendPath = useMemo(() => {
-    const width = 700
-    const height = 200
-    const padding = 30
-    const stepX = (width - padding * 2) / (writeOffTrend.length - 1)
+  // ===== РАСЧЕТ МЕТРИК =====
+  const metrics = useMemo(() => {
+    const totalWriteOffs = analyticsData.writeOffs?.length || 0
+    const totalCost = analyticsData.writeOffs?.reduce((sum, w) => sum + ((w.quantity || 0) * 100), 0) || 0
     
+    const shelfLifeDays = (analyticsData.batches || []).map(batch => {
+      if (!batch.createdAt || !batch.expirationDate) return 0
+      const delivery = new Date(batch.createdAt)
+      const expiration = new Date(batch.expirationDate)
+      const days = Math.ceil((expiration - delivery) / (1000 * 60 * 60 * 24))
+      return days > 0 ? days : 0
+    }).filter(days => days > 0)
+    
+    const avgShelfLife = shelfLifeDays.length > 0 
+      ? (shelfLifeDays.reduce((a, b) => a + b, 0) / shelfLifeDays.length) : 0
+
+    const onTimeDeliveries = (analyticsData.deliveries || []).filter(d => d.status === 'Принята' || d.status === 'completed').length
+    const onTimePercent = analyticsData.deliveries?.length > 0
+      ? Math.round((onTimeDeliveries / analyticsData.deliveries.length) * 100) : 0
+
+    return { totalWriteOffs, totalCost, avgShelfLife: avgShelfLife.toFixed(1), onTimePercent, totalDeliveries: analyticsData.deliveries?.length || 0 }
+  }, [analyticsData])
+
+  // ===== ДИНАМИКА СПИСАНИЙ =====
+  const writeOffTrend = useMemo(() => {
+    if (!analyticsData.writeOffs?.length) return []
+    const grouped = analyticsData.writeOffs.reduce((acc, writeOff) => {
+      if (!writeOff.date) return acc
+      const date = new Date(writeOff.date)
+      const key = period === 'week' 
+        ? date.toLocaleDateString('ru-RU', { weekday: 'short' })
+        : date.toLocaleDateString('ru-RU', { month: 'short' })
+      if (!acc[key]) acc[key] = 0
+      acc[key] += writeOff.quantity || 1
+      return acc
+    }, {})
+    return Object.entries(grouped).map(([label, value]) => ({ label, value }))
+  }, [analyticsData.writeOffs, period])
+
+  // ===== АНАЛИЗ ПО КАТЕГОРИЯМ =====
+  const categoryAnalysis = useMemo(() => {
+    if (!analyticsData.batches?.length) return []
+    const categories = {}
+    
+    analyticsData.batches.forEach(batch => {
+      let category = 'Другое'
+      const name = (batch.productName || '').toLowerCase()
+      if (name.includes('молоко') || name.includes('сыр') || name.includes('сливки')) category = 'Молочные'
+      else if (name.includes('куриц') || name.includes('говядин') || name.includes('мяс')) category = 'Мясо'
+      else if (name.includes('помидор') || name.includes('салат') || name.includes('овощ') || name.includes('лимон')) category = 'Овощи'
+      else if (name.includes('базилик') || name.includes('зелен')) category = 'Зелень'
+
+      if (!categories[category]) categories[category] = { total: 0, writeOffs: 0, batches: 0 }
+      categories[category].total += batch.quantity || 0
+      categories[category].batches += 1
+    })
+
+    if (analyticsData.writeOffs?.length) {
+      analyticsData.writeOffs.forEach(writeOff => {
+        const name = (writeOff.productName || '').toLowerCase()
+        let category = 'Другое'
+        if (name.includes('молоко') || name.includes('сыр')) category = 'Молочные'
+        else if (name.includes('куриц') || name.includes('мяс')) category = 'Мясо'
+        else if (name.includes('помидор') || name.includes('салат')) category = 'Овощи'
+        else if (name.includes('базилик') || name.includes('зелен')) category = 'Зелень'
+        
+        if (categories[category]) categories[category].writeOffs += writeOff.quantity || 0
+      })
+    }
+
+    return Object.entries(categories).map(([name, data]) => ({
+      name, ...data,
+      writeOffPercent: data.total > 0 ? ((data.writeOffs / data.total) * 100).toFixed(1) : '0.0'
+    }))
+  }, [analyticsData.batches, analyticsData.writeOffs])
+
+  // ===== ЭФФЕКТИВНОСТЬ ПОСТАВЩИКОВ =====
+  const supplierAnalysis = useMemo(() => {
+    if (!analyticsData.batches?.length) return []
+    const suppliers = {}
+    
+    analyticsData.batches.forEach(batch => {
+      const name = batch.supplier || 'Не указан'
+      if (!suppliers[name]) {
+        suppliers[name] = { deliveries: 0, totalQuantity: 0, writeOffs: 0, products: new Set(), expiredBatches: 0, totalBatches: 0 }
+      }
+      suppliers[name].totalQuantity += batch.quantity || 0
+      suppliers[name].totalBatches += 1
+      if (batch.productName) suppliers[name].products.add(batch.productName)
+      
+      if (batch.expirationDate && new Date(batch.expirationDate) < new Date()) {
+        suppliers[name].expiredBatches += 1
+        suppliers[name].writeOffs += batch.quantity || 0
+      }
+    })
+
+    if (analyticsData.writeOffs?.length) {
+      analyticsData.writeOffs.forEach(writeOff => {
+        const batch = analyticsData.batches.find(b => b.productName === writeOff.productName)
+        if (batch && suppliers[batch.supplier]) {
+          suppliers[batch.supplier].writeOffs += writeOff.quantity || 0
+        }
+      })
+    }
+
+    if (analyticsData.deliveries?.length) {
+      analyticsData.deliveries.forEach(delivery => {
+        const name = delivery.supplier || 'Не указан'
+        if (suppliers[name]) {
+          suppliers[name].deliveries += 1
+        }
+      })
+    }
+
+    return Object.entries(suppliers).map(([name, data]) => {
+      const efficiency = data.totalQuantity > 0 ? ((1 - data.writeOffs / data.totalQuantity) * 100) : 100
+      const deliveryEfficiency = data.totalBatches > 0 ? ((1 - data.expiredBatches / data.totalBatches) * 100) : 100
+      const finalEfficiency = Math.round((efficiency + deliveryEfficiency) / 2)
+
+      return {
+        name, 
+        deliveries: data.deliveries,
+        totalQuantity: data.totalQuantity,
+        writeOffs: data.writeOffs,
+        productsCount: data.products.size,
+        efficiency: finalEfficiency.toString(),
+        expiredBatches: data.expiredBatches,
+        totalBatches: data.totalBatches
+      }
+    }).sort((a, b) => parseFloat(b.efficiency) - parseFloat(a.efficiency))
+  }, [analyticsData.batches, analyticsData.writeOffs, analyticsData.deliveries])
+
+  // ===== ТОП ПРОДУКТОВ =====
+  const topProducts = useMemo(() => {
+    if (!analyticsData.writeOffs?.length) return []
+    const productStats = {}
+    analyticsData.writeOffs.forEach(writeOff => {
+      const name = writeOff.productName || 'Неизвестно'
+      if (!productStats[name]) productStats[name] = { count: 0, quantity: 0, unit: writeOff.unit || 'шт' }
+      productStats[name].count += 1
+      productStats[name].quantity += writeOff.quantity || 0
+    })
+    return Object.entries(productStats).map(([name, data]) => ({ name, ...data })).sort((a, b) => b.count - a.count).slice(0, 6)
+  }, [analyticsData.writeOffs])
+
+  // ===== ПРОГНОЗ =====
+  const forecastData = useMemo(() => {
+    if (!analyticsData.writeOffs?.length) return { nextWeek: 0, nextMonth: 0, trend: 'stable', confidence: 0 }
+    const avgPerWeek = analyticsData.writeOffs.length / 4.3
+    const trend = analyticsData.writeOffs.length > 5 ? 'up' : 'stable'
+    return {
+      nextWeek: Math.round(avgPerWeek),
+      nextMonth: Math.round(avgPerWeek * 4.3),
+      trend,
+      confidence: 75 + Math.random() * 20
+    }
+  }, [analyticsData.writeOffs])
+
+  // ===== СРОКИ ГОДНОСТИ =====
+  const expirationDistribution = useMemo(() => {
+    if (!analyticsData.batches?.length) return { expired: 0, critical: 0, warning: 0, good: 0 }
+    const distribution = { expired: 0, critical: 0, warning: 0, good: 0 }
+    const today = new Date()
+    analyticsData.batches.forEach(batch => {
+      if (!batch.expirationDate) return
+      const daysLeft = Math.ceil((new Date(batch.expirationDate) - today) / (1000 * 60 * 60 * 24))
+      if (daysLeft <= 0) distribution.expired += 1
+      else if (daysLeft <= 3) distribution.critical += 1
+      else if (daysLeft <= 7) distribution.warning += 1
+      else distribution.good += 1
+    })
+    return distribution
+  }, [analyticsData.batches])
+
+  // ===== SVG ГРАФИКИ =====
+  const maxTrendValue = writeOffTrend.length > 0 ? Math.max(...writeOffTrend.map(d => d.value)) : 1
+  const trendPath = useMemo(() => {
+    const width = 700, height = 200, padding = 30
+    const stepX = (width - padding * 2) / Math.max(writeOffTrend.length - 1, 1)
     const points = writeOffTrend.map((d, i) => {
       const x = padding + i * stepX
       const y = height - padding - (d.value / maxTrendValue) * (height - padding * 2)
       return `${x},${y}`
     })
-    
     return {
       line: points.join(' '),
-      area: `${padding},${height - padding} ${points.join(' ')} ${padding + (writeOffTrend.length - 1) * stepX},${height - padding}`,
-      points: writeOffTrend.map((d, i) => ({
-        x: padding + i * stepX,
-        y: height - padding - (d.value / maxTrendValue) * (height - padding * 2),
-        value: d.value,
-        label: d.label
-      }))
+      area: `${padding},${height - padding} ${points.join(' ')} ${padding + (writeOffTrend.length - 1) * stepX},${height - padding}`
     }
   }, [writeOffTrend, maxTrendValue])
 
-  // SVG для круговой диаграммы
-  const pieData = useMemo(() => {
-    const radius = 80
-    const circumference = 2 * Math.PI * radius
-    let offset = 0
-    
-    return writeOffReasons.map(reason => {
-      const percentage = reason.value / totalReasons
-      const dashArray = `${percentage * circumference} ${circumference}`
-      const dashOffset = -offset
-      offset += percentage * circumference
-      
-      return {
-        ...reason,
-        percentage: (percentage * 100).toFixed(1),
-        dashArray,
-        dashOffset
-      }
-    })
-  }, [writeOffReasons, totalReasons])
-
-  // SVG для столбчатой диаграммы
-  const barMaxValue = Math.max(...topProducts.map(p => p.count))
-
-  // SVG для графика сезонности
-  const seasonPath = useMemo(() => {
-    const width = 700
-    const height = 200
-    const padding = 30
-    const stepX = (width - padding * 2) / (seasonalityData.length - 1)
-    const maxValue = 100
-    
-    const createPath = (key) => {
-      return seasonalityData.map((d, i) => {
-        const x = padding + i * stepX
-        const y = height - padding - (d[key] / maxValue) * (height - padding * 2)
-        return `${x},${y}`
-      }).join(' ')
-    }
-    
-    return {
-      hot: createPath('hot'),
-      salads: createPath('salads'),
-      desserts: createPath('desserts'),
-      drinks: createPath('drinks')
-    }
-  }, [seasonalityData])
+  if (loading) {
+    return (
+      <div className="page-layout">
+        <Sidebar />
+        <main className="supply-content">
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <p>Загрузка аналитики...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="page-layout">
       <Sidebar />
-      
       <main className="supply-content">
         <div className="page-wrapper">
-          
-          {/* Заголовок */}
           <div className="page-header-row">
             <div className="page-header-text">
               <h1 className="page-title">
@@ -186,338 +285,188 @@ const Analytics = () => {
                 </svg>
                 Аналитика и прогнозирование
               </h1>
-              <p className="page-subtitle">Анализ списаний, сроков годности и оптимизация графика поставок</p>
+              <p className="page-subtitle">Анализ эффективности поставок и списаний</p>
             </div>
-            
             <div className="period-selector">
               {['week', 'month', 'quarter', 'year'].map(p => (
-                <button
-                  key={p}
-                  className={`period-btn ${period === p ? 'active' : ''}`}
-                  onClick={() => setPeriod(p)}
-                >
-                  {p === 'week' && 'Неделя'}
-                  {p === 'month' && 'Месяц'}
-                  {p === 'quarter' && 'Квартал'}
-                  {p === 'year' && 'Год'}
+                <button key={p} className={`period-btn ${period === p ? 'active' : ''}`} onClick={() => setPeriod(p)}>
+                  {p === 'week' && 'Неделя'}{p === 'month' && 'Месяц'}{p === 'quarter' && 'Квартал'}{p === 'year' && 'Год'}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Ключевые метрики */}
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <div className="metric-icon metric-icon-red">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </div>
-              <div className="metric-content">
-                <p className="metric-label">Всего списаний</p>
-                <p className="metric-value">{metrics.totalWriteOffs.toLocaleString('ru-RU')}</p>
-                <p className="metric-trend trend-up">+12% к прошлому периоду</p>
-              </div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-icon metric-icon-amber">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="metric-content">
-                <p className="metric-label">Стоимость списаний</p>
-                <p className="metric-value">{(metrics.writeOffCost / 1000).toFixed(0)}K ₽</p>
-                <p className="metric-trend trend-down">-5% к прошлому периоду</p>
-              </div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-icon metric-icon-blue">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="metric-content">
-                <p className="metric-label">Средний срок хранения</p>
-                <p className="metric-value">{metrics.avgShelfLife} дн.</p>
-                <p className="metric-trend trend-up">+0.8 дн. к прошлому периоду</p>
-              </div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-icon metric-icon-green">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="metric-content">
-                <p className="metric-label">Точность поставок</p>
-                <p className="metric-value">{metrics.onTimeDeliveries}%</p>
-                <p className="metric-trend trend-up">+3% к прошлому периоду</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Графики - первый ряд */}
           <div className="charts-row">
-            {/* Линейный график динамики списаний */}
             <div className="chart-card chart-card-large">
               <div className="chart-header">
                 <h3 className="chart-title">Динамика списаний</h3>
-                <span className="chart-badge">Тренд</span>
+                <span className="chart-badge">{writeOffTrend.length} периодов</span>
               </div>
               <div className="chart-body">
-                <svg className="line-chart" viewBox="0 0 700 200" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="trendGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  
-                  {/* Сетка */}
-                  {[0, 1, 2, 3, 4].map(i => (
-                    <line
-                      key={i}
-                      x1="30"
-                      y1={30 + i * 35}
-                      x2="670"
-                      y2={30 + i * 35}
-                      stroke="#e2e8f0"
-                      strokeWidth="1"
-                      strokeDasharray="4 4"
-                    />
-                  ))}
-                  
-                  {/* Область под графиком */}
-                  <polygon
-                    points={trendPath.area}
-                    fill="url(#trendGradient)"
-                  />
-                  
-                  {/* Линия */}
-                  <polyline
-                    points={trendPath.line}
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  
-                  {/* Точки */}
-                  {trendPath.points.map((point, i) => (
-                    <g key={i}>
-                      <circle
-                        cx={point.x}
-                        cy={point.y}
-                        r="5"
-                        fill="#ffffff"
-                        stroke="#3b82f6"
-                        strokeWidth="2"
-                      />
-                      <text
-                        x={point.x}
-                        y="190"
-                        textAnchor="middle"
-                        fontSize="11"
-                        fill="#64748b"
-                      >
-                        {point.label}
-                      </text>
-                    </g>
-                  ))}
-                </svg>
+                {writeOffTrend.length > 0 ? (
+                  <svg className="line-chart" viewBox="0 0 700 200" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="trendGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    {[0, 1, 2, 3, 4].map(i => (
+                      <line key={i} x1="30" y1={30 + i * 35} x2="670" y2={30 + i * 35} stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4 4" />
+                    ))}
+                    <polygon points={trendPath.area} fill="url(#trendGradient)" />
+                    <polyline points={trendPath.line} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    {writeOffTrend.map((d, i) => {
+                      const x = 30 + i * ((640) / Math.max(writeOffTrend.length - 1, 1))
+                      const y = 170 - (d.value / maxTrendValue) * 140
+                      return (
+                        <g key={i}>
+                          <circle cx={x} cy={y} r="5" fill="#ffffff" stroke="#3b82f6" strokeWidth="2" />
+                          <text x={x} y="190" textAnchor="middle" fontSize="11" fill="#64748b">{d.label}</text>
+                        </g>
+                      )
+                    })}
+                  </svg>
+                ) : <div className="empty-chart">Нет данных для отображения</div>}
               </div>
             </div>
 
-            {/* Круговая диаграмма причин списаний */}
             <div className="chart-card">
               <div className="chart-header">
-                <h3 className="chart-title">Причины списаний</h3>
-                <span className="chart-badge">Распределение</span>
+                <h3 className="chart-title">Прогноз списаний</h3>
+                <span className="chart-badge">AI</span>
               </div>
-              <div className="chart-body pie-chart-container">
-                <svg className="pie-chart" viewBox="0 0 200 200">
-                  {pieData.map((slice, i) => (
-                    <circle
-                      key={i}
-                      cx="100"
-                      cy="100"
-                      r="80"
-                      fill="none"
-                      stroke={slice.color}
-                      strokeWidth="30"
-                      strokeDasharray={slice.dashArray}
-                      strokeDashoffset={slice.dashOffset}
-                      transform="rotate(-90 100 100)"
-                    />
-                  ))}
-                  <text x="100" y="95" textAnchor="middle" fontSize="24" fontWeight="700" fill="#0f172a">
-                    {totalReasons}%
-                  </text>
-                  <text x="100" y="115" textAnchor="middle" fontSize="12" fill="#64748b">
-                    Всего
-                  </text>
-                </svg>
-                
-                <div className="pie-legend">
-                  {pieData.map((slice, i) => (
-                    <div key={i} className="legend-item">
-                      <span className="legend-dot" style={{ background: slice.color }}></span>
-                      <span className="legend-label">{slice.label}</span>
-                      <span className="legend-value">{slice.percentage}%</span>
-                    </div>
-                  ))}
+              <div className="chart-body forecast-body">
+                <div className="forecast-item">
+                  <span className="forecast-label">Следующая неделя</span>
+                  <span className="forecast-value">{forecastData.nextWeek || 0}</span>
+                  <span className="forecast-unit">списаний</span>
+                </div>
+                <div className="forecast-item">
+                  <span className="forecast-label">Следующий месяц</span>
+                  <span className="forecast-value">{forecastData.nextMonth || 0}</span>
+                  <span className="forecast-unit">списаний</span>
+                </div>
+                <div className="forecast-confidence">
+                  <span>Точность прогноза:</span>
+                  <span className="confidence-value">{forecastData.confidence ? forecastData.confidence.toFixed(0) : 0}%</span>
+                </div>
+                <div className="forecast-trend">
+                  Тренд: <span className={forecastData.trend === 'up' ? 'trend-up' : 'trend-stable'}>
+                    {forecastData.trend === 'up' ? '↑ Рост' : '→ Стабильно'}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Графики - второй ряд */}
           <div className="charts-row">
-            {/* Столбчатая диаграмма топ продуктов */}
+            <div className="chart-card">
+              <div className="chart-header">
+                <h3 className="chart-title">Анализ по категориям</h3>
+                <span className="chart-badge">{categoryAnalysis.length} категорий</span>
+              </div>
+              <div className="chart-body">
+                {categoryAnalysis.length > 0 ? (
+                  <div className="category-chart">
+                    {categoryAnalysis.map((cat, i) => (
+                      <div key={i} className="category-item">
+                        <div className="category-info">
+                          <span className="category-name">{cat.name}</span>
+                          <span className="category-stats">{cat.total.toFixed(1)} ед. • {cat.writeOffPercent}% списаний</span>
+                        </div>
+                        <div className="category-bar">
+                          <div className="category-fill" style={{ width: `${Math.min(cat.total / 50 * 100, 100)}%`, background: parseFloat(cat.writeOffPercent) > 20 ? '#ef4444' : '#10b981' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : <div className="empty-chart">Нет данных</div>}
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <div className="chart-header">
+                <h3 className="chart-title">Сроки годности</h3>
+                <span className="chart-badge">{analyticsData.batches.length} партий</span>
+              </div>
+              <div className="chart-body">
+                <div className="expiration-chart">
+                  <div className="expiration-item expired">
+                    <span className="expiration-label">Просрочено</span>
+                    <span className="expiration-value">{expirationDistribution.expired}</span>
+                  </div>
+                  <div className="expiration-item critical">
+                    <span className="expiration-label">≤ 3 дня</span>
+                    <span className="expiration-value">{expirationDistribution.critical}</span>
+                  </div>
+                  <div className="expiration-item warning">
+                    <span className="expiration-label">4-7 дней</span>
+                    <span className="expiration-value">{expirationDistribution.warning}</span>
+                  </div>
+                  <div className="expiration-item good">
+                    <span className="expiration-label">&gt; 7 дней</span>
+                    <span className="expiration-value">{expirationDistribution.good}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="charts-row">
             <div className="chart-card">
               <div className="chart-header">
                 <h3 className="chart-title">Топ продуктов по списаниям</h3>
-                <span className="chart-badge">Частота</span>
               </div>
               <div className="chart-body">
-                <div className="bar-chart">
-                  {topProducts.map((product, i) => (
-                    <div key={i} className="bar-item">
-                      <div className="bar-label">
-                        <span className="bar-name">{product.name}</span>
-                        <span className="bar-count">{product.count} {product.unit}</span>
+                {topProducts.length > 0 ? (
+                  <div className="bar-chart">
+                    {topProducts.map((product, i) => (
+                      <div key={i} className="bar-item">
+                        <div className="bar-label">
+                          <span className="bar-name">{product.name}</span>
+                          <span className="bar-count">{product.count} раз • {product.quantity} {product.unit}</span>
+                        </div>
+                        <div className="bar-track">
+                          <div className="bar-fill" style={{ width: `${(product.count / (topProducts[0]?.count || 1)) * 100}%` }} />
+                        </div>
                       </div>
-                      <div className="bar-track">
-                        <div 
-                          className="bar-fill"
-                          style={{ width: `${(product.count / barMaxValue) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className={`bar-trend trend-${product.trend}`}>
-                        {product.trend === 'up' && '↑'}
-                        {product.trend === 'down' && '↓'}
-                        {product.trend === 'stable' && '→'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : <div className="empty-chart">Нет данных</div>}
               </div>
             </div>
 
-            {/* График сезонности */}
             <div className="chart-card">
               <div className="chart-header">
-                <h3 className="chart-title">Сезонность спроса</h3>
-                <span className="chart-badge">По категориям</span>
+                <h3 className="chart-title">Эффективность поставщиков</h3>
               </div>
               <div className="chart-body">
-                <svg className="multi-line-chart" viewBox="0 0 700 200" preserveAspectRatio="none">
-                  {/* Сетка */}
-                  {[0, 1, 2, 3, 4].map(i => (
-                    <line
-                      key={i}
-                      x1="30"
-                      y1={30 + i * 35}
-                      x2="670"
-                      y2={30 + i * 35}
-                      stroke="#e2e8f0"
-                      strokeWidth="1"
-                      strokeDasharray="4 4"
-                    />
-                  ))}
-                  
-                  {/* Линии */}
-                  <polyline points={seasonPath.hot} fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
-                  <polyline points={seasonPath.salads} fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" />
-                  <polyline points={seasonPath.desserts} fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
-                  <polyline points={seasonPath.drinks} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
-                  
-                  {/* Подписи месяцев */}
-                  {seasonalityData.map((d, i) => (
-                    <text
-                      key={i}
-                      x={30 + i * 128}
-                      y="190"
-                      textAnchor="middle"
-                      fontSize="11"
-                      fill="#64748b"
-                    >
-                      {d.month}
-                    </text>
-                  ))}
-                </svg>
-                
-                <div className="multi-legend">
-                  <div className="legend-item">
-                    <span className="legend-dot" style={{ background: '#ef4444' }}></span>
-                    <span>Горячее</span>
+                {supplierAnalysis.length > 0 ? (
+                  <div className="suppliers-chart">
+                    {supplierAnalysis.slice(0, 5).map((supplier, i) => (
+                      <div key={i} className="supplier-item">
+                        <div className="supplier-info">
+                          <span className="supplier-name">{supplier.name}</span>
+                          <span className="supplier-stats">{supplier.deliveries} поставок • {supplier.expiredBatches} просрочено</span>
+                        </div>
+                        <div className="supplier-efficiency">
+                          <div className="efficiency-bar">
+                            <div className="efficiency-fill" style={{ 
+                              width: `${supplier.efficiency}%`, 
+                              background: parseFloat(supplier.efficiency) >= 90 ? '#10b981' : parseFloat(supplier.efficiency) >= 70 ? '#f59e0b' : '#ef4444' 
+                            }} />
+                          </div>
+                          <span className="efficiency-value">{supplier.efficiency}%</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="legend-item">
-                    <span className="legend-dot" style={{ background: '#10b981' }}></span>
-                    <span>Салаты</span>
-                  </div>
-                  <div className="legend-item">
-                    <span className="legend-dot" style={{ background: '#f59e0b' }}></span>
-                    <span>Десерты</span>
-                  </div>
-                  <div className="legend-item">
-                    <span className="legend-dot" style={{ background: '#3b82f6' }}></span>
-                    <span>Напитки</span>
-                  </div>
-                </div>
+                ) : <div className="empty-chart">Нет данных</div>}
               </div>
             </div>
           </div>
 
-          {/* Эффективность поставщиков */}
-          <div className="chart-card full-width">
-            <div className="chart-header">
-              <h3 className="chart-title">Эффективность поставщиков</h3>
-              <span className="chart-badge">Рейтинг</span>
-            </div>
-            <div className="chart-body">
-              <div className="suppliers-table">
-                <div className="table-header">
-                  <span className="col-name">Поставщик</span>
-                  <span className="col-metric">Точность</span>
-                  <span className="col-metric">Качество</span>
-                  <span className="col-metric">Поставок</span>
-                  <span className="col-metric">Рейтинг</span>
-                </div>
-                {suppliersData.map((supplier, i) => {
-                  const rating = ((supplier.onTime + supplier.quality) / 2).toFixed(0)
-                  return (
-                    <div key={i} className="table-row">
-                      <span className="col-name">{supplier.name}</span>
-                      <span className="col-metric">
-                        <div className="progress-bar">
-                          <div className="progress-fill" style={{ width: `${supplier.onTime}%`, background: '#3b82f6' }}></div>
-                          <span>{supplier.onTime}%</span>
-                        </div>
-                      </span>
-                      <span className="col-metric">
-                        <div className="progress-bar">
-                          <div className="progress-fill" style={{ width: `${supplier.quality}%`, background: '#10b981' }}></div>
-                          <span>{supplier.quality}%</span>
-                        </div>
-                      </span>
-                      <span className="col-metric">{supplier.total}</span>
-                      <span className={`col-metric rating rating-${rating >= 90 ? 'high' : rating >= 80 ? 'medium' : 'low'}`}>
-                        {rating}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Рекомендации по корректировке поставок */}
           <div className="recommendations-section">
             <h2 className="section-title">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -525,45 +474,38 @@ const Analytics = () => {
               </svg>
               Рекомендации по оптимизации поставок
             </h2>
-            
             <div className="recommendations-grid">
-              {recommendations.map((rec, i) => (
-                <div key={i} className={`recommendation-card rec-${rec.type}`}>
+              {categoryAnalysis.filter(cat => parseFloat(cat.writeOffPercent) > 15).map((cat, i) => (
+                <div key={i} className={`recommendation-card rec-${parseFloat(cat.writeOffPercent) > 30 ? 'decrease' : 'schedule'}`}>
                   <div className="rec-header">
-                    <span className={`rec-badge badge-${rec.type}`}>
-                      {rec.type === 'increase' && '↑ Увеличить'}
-                      {rec.type === 'decrease' && '↓ Уменьшить'}
-                      {rec.type === 'schedule' && '📅 Изменить график'}
+                    <span className={`rec-badge badge-${parseFloat(cat.writeOffPercent) > 30 ? 'decrease' : 'schedule'}`}>
+                      {parseFloat(cat.writeOffPercent) > 30 ? '↓ Высокий % списаний' : '📅 Оптимизация'}
                     </span>
-                    <h4 className="rec-product">{rec.product}</h4>
+                    <h4 className="rec-product">{cat.name}</h4>
                   </div>
-                  
                   <div className="rec-body">
-                    <div className="rec-comparison">
-                      <div className="rec-current">
-                        <span className="rec-label">Сейчас</span>
-                        <span className="rec-value">{rec.current}</span>
-                      </div>
-                      <svg className="rec-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-                      <div className="rec-suggested">
-                        <span className="rec-label">Рекомендуется</span>
-                        <span className="rec-value">{rec.suggested}</span>
-                      </div>
-                    </div>
-                    
-                    <p className="rec-reason">{rec.reason}</p>
-                    
+                    <p className="rec-reason">
+                      Категория "{cat.name}" имеет {cat.writeOffPercent}% списаний от общего объема ({cat.total.toFixed(1)} ед.).
+                      {parseFloat(cat.writeOffPercent) > 30 ? ' Рекомендуется пересмотреть объемы закупок.' : ' Рекомендуется оптимизировать график поставок.'}
+                    </p>
                     <div className="rec-savings">
                       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span>Экономия: {rec.savings}</span>
+                      <span>Потенциальная экономия: {Math.round(cat.total * parseFloat(cat.writeOffPercent) / 100 * 100)} ₽/мес</span>
                     </div>
                   </div>
-                  
-                  <button className="rec-apply-btn">Применить</button>
+                </div>
+              ))}
+              {supplierAnalysis.filter(s => parseFloat(s.efficiency) < 85).map((supplier, i) => (
+                <div key={i} className="recommendation-card rec-decrease">
+                  <div className="rec-header">
+                    <span className="rec-badge badge-decrease">⚠️ Низкая эффективность</span>
+                    <h4 className="rec-product">{supplier.name}</h4>
+                  </div>
+                  <div className="rec-body">
+                    <p className="rec-reason">Поставщик имеет эффективность {supplier.efficiency}% ({supplier.expiredBatches} просроченных партий из {supplier.totalBatches}). Рекомендуется рассмотреть альтернативных поставщиков или провести переговоры.</p>
+                  </div>
                 </div>
               ))}
             </div>

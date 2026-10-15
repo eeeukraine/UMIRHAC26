@@ -655,3 +655,232 @@ body {
     transform: rotate(90deg);
   }
 }
+/* ===== НОВЫЕ СТИЛИ ДЛЯ ОБНОВЛЕННОЙ АНАЛИТИКИ ===== */
+
+/* Прогноз списаний */
+.forecast-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.forecast-item {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f0f9ff, #e0e7ff);
+  border-radius: 0.75rem;
+  border-left: 4px solid #3b82f6;
+}
+
+.forecast-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.forecast-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.forecast-unit {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.forecast-confidence {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.confidence-value {
+  font-weight: 700;
+  color: #10b981;
+  font-size: 1.1rem;
+}
+
+.forecast-trend {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+/* Анализ по категориям */
+.category-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.category-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.category-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.category-name {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.category-stats {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.category-bar {
+  height: 0.75rem;
+  background: #f1f5f9;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.category-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.6s ease-out;
+}
+
+/* Распределение сроков годности */
+.expiration-chart {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.expiration-item {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.expiration-item.expired {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  border: 2px solid #fecaca;
+}
+
+.expiration-item.critical {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border: 2px solid #fde68a;
+}
+
+.expiration-item.warning {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 2px solid #bfdbfe;
+}
+
+.expiration-item.good {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border: 2px solid #a7f3d0;
+}
+
+.expiration-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.expiration-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* Анализ поставщиков */
+.suppliers-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.supplier-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+}
+
+.supplier-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.supplier-name {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.supplier-stats {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.supplier-efficiency {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.efficiency-bar {
+  flex: 1;
+  height: 0.75rem;
+  background: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.efficiency-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.6s ease-out;
+}
+
+.efficiency-value {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.85rem;
+  min-width: 3rem;
+  text-align: right;
+}
+
+/* Убираем кнопки Применить */
+.rec-apply-btn {
+  display: none;
+}
+
+.recommendation-card {
+  cursor: default;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .expiration-chart {
+    grid-template-columns: 1fr;
+  }
+  
+  .forecast-value {
+    font-size: 1.5rem;
+  }
+}

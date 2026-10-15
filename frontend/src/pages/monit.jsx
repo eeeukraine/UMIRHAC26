@@ -11,11 +11,41 @@ const getAuthHeaders = () => {
   };
 };
 
+// ️ СЕРЕБРЯНАЯ ПУЛЯ: Получает локальную дату в формате YYYY-MM-DD без сдвигов UTC
+const getLocalTodayStr = () => {
+  return new Date().toLocaleDateString('sv-SE');
+};
+
+// 🛡️ Проверяет, просрочена ли дата (включая сегодня)
+const isExpired = (dateStr) => {
+  if (!dateStr) return false;
+  const cleanDate = String(dateStr).substring(0, 10);
+  return cleanDate <= getLocalTodayStr();
+};
+
+// 🛡️ Считает количество дней до истечения (локально, без сдвигов UTC)
+const getDaysLeft = (dateStr) => {
+  if (!dateStr) return 999;
+  const cleanDate = String(dateStr).substring(0, 10);
+  const today = getLocalTodayStr();
+  
+  // Создаём даты в локальном часовом поясе (без UTC-сдвига)
+  const [y1, m1, d1] = cleanDate.split('-').map(Number);
+  const [y2, m2, d2] = today.split('-').map(Number);
+  
+  const expDate = new Date(y1, m1 - 1, d1);
+  const todayDate = new Date(y2, m2 - 1, d2);
+  
+  const diffTime = expDate - todayDate;
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
 const Monit = () => {
   const [inventory, setInventory] = useState([])
   const [suggestedDeliveries, setSuggestedDeliveries] = useState([])
   const [affectedRecipes, setAffectedRecipes] = useState([])
   const [expiringSoon, setExpiringSoon] = useState([])
+  const [expiredBatches, setExpiredBatches] = useState([]) // ✅ Новое: просроченные партии
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState(null)
 
@@ -33,9 +63,8 @@ const Monit = () => {
   const loadMonitoringData = async () => {
     setLoading(true)
     try {
-      const headers = getAuthHeaders(); // ✅ Получаем заголовки с токеном один раз
+      const headers = getAuthHeaders();
 
-      // Загружаем все данные параллельно, включая новые рецепты под угрозой
       const [
         productsRes,
         lowStockRes,
@@ -43,11 +72,11 @@ const Monit = () => {
         statsRes,
         atRiskRes
       ] = await Promise.all([
-        fetch('http://localhost:8080/api/warehouse/products', { headers }), // ✅ Добавлены заголовки
-        fetch('http://localhost:8080/api/warehouse/low-stock', { headers }), // ✅ Добавлены заголовки
-        fetch('http://localhost:8080/api/warehouse/expiring?days=7', { headers }), // ✅ Добавлены заголовки
-        fetch('http://localhost:8080/api/warehouse/stats', { headers }), // ✅ Добавлены заголовки
-        fetch('http://localhost:8080/api/warehouse/at-risk-recipes', { headers }) // ✅ Добавлены заголовки
+        fetch('http://localhost:8080/api/warehouse/products', { headers }),
+        fetch('http://localhost:8080/api/warehouse/low-stock', { headers }),
+        fetch('http://localhost:8080/api/warehouse/expiring?days=30', { headers }), // ✅ Увеличили до 30 дней
+        fetch('http://localhost:8080/api/warehouse/stats', { headers }),
+        fetch('http://localhost:8080/api/warehouse/at-risk-recipes', { headers })
       ])
 
       const products = await productsRes.json()
@@ -56,17 +85,30 @@ const Monit = () => {
       const stats = await statsRes.json()
       const atRisk = await atRiskRes.json()
 
+      const todayStr = getLocalTodayStr();
+
       // 1. Формируем инвентарь с партиями
       const inventoryData = products.map(product => {
-        const totalQty = parseFloat((product.batches.reduce((sum, b) => sum + b.quantity, 0)).toFixed(2))
-        const earliestBatch = product.batches.length > 0 
-          ? product.batches.reduce((min, b) => new Date(b.expirationDate) < new Date(min.expirationDate) ? b : min)
-          : null
+        // ✅ Считаем только СВЕЖИЕ партии (не просроченные)
+        const freshBatches = product.batches.filter(b => !isExpired(b.expirationDate));
+        const totalQty = parseFloat((freshBatches.reduce((sum, b) => sum + b.quantity, 0)).toFixed(2));
+        
+        // ✅ Ищем самую раннюю СВЕЖУЮ партию
+        const earliestBatch = freshBatches.length > 0 
+          ? freshBatches.reduce((min, b) => {
+              const minDays = getDaysLeft(min.expirationDate);
+              const bDays = getDaysLeft(b.expirationDate);
+              return bDays < minDays ? b : min;
+            })
+          : null;
 
         let status = 'ok'
         if (totalQty < product.minStock) {
           status = totalQty < product.minStock * 0.3 ? 'critical' : 'low'
         }
+        // ✅ Если есть просроченные партии — помечаем как critical
+        const hasExpired = product.batches.some(b => isExpired(b.expirationDate));
+        if (hasExpired) status = 'critical';
 
         return {
           id: product.id,
@@ -76,7 +118,8 @@ const Monit = () => {
           minQuantity: product.minStock,
           status,
           expirationDate: earliestBatch ? earliestBatch.expirationDate : null,
-          batches: product.batches
+          batches: product.batches,
+          hasExpired
         }
       })
 
@@ -91,21 +134,39 @@ const Monit = () => {
         priority: product.priority
       }))
 
-      // 3. Истекающие сроки
-      const expiringData = expiring.map(batch => {
-        const daysLeft = Math.ceil((new Date(batch.expirationDate) - new Date()) / (1000 * 60 * 60 * 24))
-        return {
+      // 3. Истекающие сроки (только свежие, от 1 до 7 дней)
+      const expiringData = expiring
+        .filter(batch => {
+          const daysLeft = getDaysLeft(batch.expirationDate);
+          return daysLeft >= 1 && daysLeft <= 7; // ✅ Только будущие, не включая сегодня
+        })
+        .map(batch => {
+          const daysLeft = getDaysLeft(batch.expirationDate);
+          return {
+            id: batch.id,
+            name: batch.productName,
+            quantity: parseFloat(batch.quantity.toFixed(2)),
+            unit: batch.unit,
+            expirationDate: batch.expirationDate,
+            daysLeft,
+            batchNumber: batch.batchNumber
+          }
+        })
+
+      // ✅ 4. Просроченные партии (отдельный список)
+      const expiredData = expiring
+        .filter(batch => isExpired(batch.expirationDate))
+        .map(batch => ({
           id: batch.id,
           name: batch.productName,
           quantity: parseFloat(batch.quantity.toFixed(2)),
           unit: batch.unit,
           expirationDate: batch.expirationDate,
-          daysLeft,
+          daysLeft: getDaysLeft(batch.expirationDate),
           batchNumber: batch.batchNumber
-        }
-      })
+        }))
 
-      // 4. Рецепты под угрозой
+      // 5. Рецепты под угрозой
       const recipesData = atRisk.map(recipe => ({
         id: recipe.id,
         name: recipe.name,
@@ -115,6 +176,7 @@ const Monit = () => {
       setInventory(inventoryData)
       setSuggestedDeliveries(deliveriesData)
       setExpiringSoon(expiringData)
+      setExpiredBatches(expiredData) // ✅ Сохраняем просроченные
       setAffectedRecipes(recipesData)
       setLastUpdate(new Date().toLocaleString('ru-RU'))
       
@@ -224,7 +286,7 @@ const Monit = () => {
                 </svg>
               </div>
               <div className="stat-content">
-                <p className="stat-label">Близко к истечению</p>
+                <p className="stat-label">Истекают (1-7 дн.)</p>
                 <p className="stat-value">{expiringSoon.length}</p>
               </div>
             </div>
@@ -266,7 +328,10 @@ const Monit = () => {
                       {inventory.map((item) => (
                         <div key={item.id} className={`inventory-item ${getStatusColor(item.status)}`}>
                           <div className="inventory-info">
-                            <p className="inventory-name">{item.name}</p>
+                            <p className="inventory-name">
+                              {item.name}
+                              {item.hasExpired && <span className="expired-badge">⚠ Есть просрочка</span>}
+                            </p>
                             <p className="inventory-details">
                               <span className="inventory-quantity">{item.quantity} {item.unit}</span>
                               <span className="inventory-min">мин: {item.minQuantity} {item.unit}</span>
@@ -340,7 +405,7 @@ const Monit = () => {
                       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      Истекают в течение 7 дней
+                      Истекают (1-7 дней)
                     </h2>
                   </div>
                   <div className="card-body scrollable-body">
@@ -368,7 +433,37 @@ const Monit = () => {
                 </div>
               )}
 
-              {/* 4. Рецепты под угрозой */}
+              {/* ✅ 4. Просроченные партии (НОВЫЙ БЛОК) */}
+              {activeViews.expiring && expiredBatches.length > 0 && (
+                <div className="card list-panel">
+                  <div className="card-header" style={{ background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)', borderBottom: '2px solid #ef4444' }}>
+                    <h2 style={{ color: '#dc2626' }}>
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Просрочено ({expiredBatches.length})
+                    </h2>
+                  </div>
+                  <div className="card-body scrollable-body">
+                    <div className="expiring-list">
+                      {expiredBatches.map((item) => (
+                        <div key={item.id} className="expiring-item" style={{ borderLeft: '4px solid #ef4444', background: '#fef2f2' }}>
+                          <div className="expiring-info">
+                            <p className="expiring-name" style={{ color: '#dc2626', fontWeight: 'bold' }}>{item.name}</p>
+                            <p className="expiring-quantity">{item.quantity} {item.unit}</p>
+                            <p className="expiring-date">Истек: {new Date(item.expirationDate).toLocaleDateString('ru-RU')}</p>
+                          </div>
+                          <span className="expiring-badge critical" style={{ background: '#ef4444', color: 'white' }}>
+                            {Math.abs(item.daysLeft)} дн. назад
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 5. Рецепты под угрозой */}
               {activeViews.recipes && (
                 <div className="card list-panel">
                   <div className="card-header card-header-purple">
