@@ -4,24 +4,33 @@ import { Navigate, useLocation } from 'react-router-dom'
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const location = useLocation()
 
-  // 1. Проверяем, есть ли пользователь (залогинен ли)
-  const userStr = localStorage.getItem('user')
+  // Проверяем, есть ли пользователь
+  let userStr = localStorage.getItem('user')
   
+  // ВРЕМЕННЫЙ КОД: если нет пользователя — создаем тестового админа
+  if (!userStr && import.meta.env.DEV) {
+    const testUser = {
+      id: 1,
+      name: 'Тестовый Админ',
+      role: 'admin', // можешь поменять на 'manager' или 'worker' для теста
+      firmId: 1
+    }
+    localStorage.setItem('user', JSON.stringify(testUser))
+    localStorage.setItem('token', 'dev-test-token')
+    userStr = JSON.stringify(testUser)
+    console.log(' Создан тестовый пользователь:', testUser)
+  }
+
   if (!userStr) {
-    // Если не залогинен — кидаем на страницу входа, запоминаем откуда пришел
     return <Navigate to="/" state={{ from: location }} replace />
   }
 
-  // 2. Получаем данные пользователя
   const user = JSON.parse(userStr)
 
-  // 3. Проверяем роль
   if (!allowedRoles.includes(user.role)) {
-    // Если роли нет в списке разрешенных — кидаем на страницу "нет доступа"
     return <Navigate to="/unauthorized" replace />
   }
 
-  // 4. Если всё ок — показываем страницу
   return children
 }
 

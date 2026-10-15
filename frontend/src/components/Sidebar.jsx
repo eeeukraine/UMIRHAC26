@@ -4,17 +4,16 @@ import {
   LayoutDashboard, BarChart3, FileX, Ban, ShoppingCart, 
   UtensilsCrossed, Package, Truck, LogOut 
 } from 'lucide-react';
-import { ROLES, MENU_PERMISSIONS } from '../constants/roles'; // Импортируем конфиг
+import { ROLES, MENU_PERMISSIONS } from '../constants/roles';
 import './Sidebar.css';
 
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Получаем данные пользователя
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
-  const currentRole = user?.role || ROLES.WORKER; // Fallback на случай ошибки
+  const currentRole = user?.role || 'admin';
 
   const menuItems = [
     { name: 'Главная', icon: LayoutDashboard, path: '/dashboard', permissionKey: 'dashboard' },
@@ -27,10 +26,10 @@ const Sidebar = () => {
     { name: 'Поставки', icon: Truck, path: '/priemps', permissionKey: 'prieemps' },
   ];
 
-  // ФИЛЬТРАЦИЯ: оставляем только те пункты, где роль пользователя разрешена
-  const visibleMenuItems = menuItems.filter(item => 
-    MENU_PERMISSIONS[item.permissionKey].includes(currentRole)
-  );
+  const visibleMenuItems = menuItems.filter(item => {
+    const allowed = MENU_PERMISSIONS[item.permissionKey];
+    return allowed && allowed.includes(currentRole);
+  });
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -41,10 +40,17 @@ const Sidebar = () => {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <div className="logo-icon">🍽️</div>
+        {/* Иконка куба как на странице входа */}
+        <div className="logo-icon">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+        </div>
         <div className="logo-text-container">
-          <span className="logo-text">RestoManager</span>
-          <span className="logo-role">{currentRole === 'admin' ? 'Администратор' : currentRole === 'manager' ? 'Менеджер' : 'Сотрудник'}</span>
+          <span className="logo-text">Restock</span>
+          <span className="logo-role">
+            {currentRole === 'admin' ? 'Администратор' : currentRole === 'manager' ? 'Менеджер' : 'Сотрудник'}
+          </span>
         </div>
       </div>
 

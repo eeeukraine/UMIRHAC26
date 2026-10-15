@@ -4,14 +4,13 @@ export const ROLES = {
   WORKER: 'worker',
 };
 
-// Матрица доступов: какие роли могут видеть пункт меню
 export const MENU_PERMISSIONS = {
-  dashboard: [ROLES.ADMIN, ROLES.MANAGER, ROLES.WORKER],
-  analytics: [ROLES.ADMIN], // Только админ
-  spisaniya: [ROLES.ADMIN, ROLES.MANAGER],
-  stoplist: [ROLES.ADMIN, ROLES.MANAGER],
-  priemzk: [ROLES.ADMIN, ROLES.MANAGER, ROLES.WORKER], // Заказы
-  bluda: [ROLES.ADMIN, ROLES.MANAGER],
-  monit: [ROLES.ADMIN, ROLES.MANAGER, ROLES.WORKER], // Склад
-  priemps: [ROLES.ADMIN, ROLES.MANAGER], // Поставки
+  dashboard: ['admin', 'manager', 'worker'],
+  analytics: ['admin'],
+  spisaniya: ['admin', 'manager'],
+  stoplist: ['admin', 'manager'],
+  priemzk: ['admin', 'manager', 'worker'],
+  bluda: ['admin', 'manager'],
+  monit: ['admin', 'manager', 'worker'],
+  priemps: ['admin', 'manager'], // <-- ИСПРАВЛЕНО: теперь совпадает с Sidebar
 };
