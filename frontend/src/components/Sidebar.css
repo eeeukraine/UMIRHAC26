@@ -2,89 +2,109 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 14rem;
+  width: 14rem; /* Уменьшено с 16rem до 14rem (224px) */
   height: 100vh;
   background: #0f172a;
-  padding: 0.75rem;
+  padding: 1rem 0.6rem; /* Уменьшены отступы */
   overflow-y: auto;
   z-index: 100;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
+  border-right: 1px solid #1e293b;
 }
 
-/* Кастомный скроллбар для сайдбара */
-.sidebar::-webkit-scrollbar {
-  width: 4px;
+/* Шапка с логотипом */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 0.6rem 1.2rem 0.6rem;
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 0.8rem;
 }
 
-.sidebar::-webkit-scrollbar-track {
-  background: transparent;
+.logo-icon {
+  font-size: 1.3rem;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 10px;
+.logo-text {
+  font-size: 1rem; /* Чуть меньше текст */
+  font-weight: 700;
+  color: #f8fafc;
 }
 
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
-
+/* Навигация */
 .nav {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  padding-top: 1rem;
-  flex: 1; /* Занимает всё доступное пространство */
+  flex: 1;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.55rem 0.75rem;
+  padding: 0.6rem 0.7rem; /* Уменьшены отступы */
   border-radius: 0.5rem;
   text-decoration: none;
-  color: #cbd5e1;
-  transition: all 0.2s;
-  font-size: 0.85rem;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+  font-size: 0.85rem; /* Чуть меньше шрифт */
+  font-weight: 500;
+  border-left: 3px solid transparent;
 }
 
 .nav-link:hover {
   background: #1e293b;
-  color: white;
+  color: #f1f5f9;
 }
 
 .nav-link.active {
-  background: linear-gradient(to right, #2563eb, #4f46e5);
-  color: white;
-  box-shadow: 0 4px 8px -2px rgba(37, 99, 235, 0.4);
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border-left: 3px solid #3b82f6;
 }
 
-.nav-icon {
-  font-size: 1.1rem;
+/* Футер с кнопкой выхода */
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 0.8rem;
+  border-top: 1px solid #1e293b;
 }
 
-.nav-text {
-  font-weight: 500;
-}
-
-/* Кнопка выхода */
 .logout-btn {
-  margin-top: auto; /* Прижимает кнопку к низу */
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
   width: 100%;
   text-align: left;
   font-family: inherit;
+  color: #f87171;
+  padding: 0.6rem 0.7rem;
+  font-size: 0.85rem;
 }
 
 .logout-btn:hover {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444 !important;
-  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-radius: 0.5rem;
+}
+
+/* Адаптивность для планшетов */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 12rem; /* Еще уже на планшетах */
+  }
+  
+  .logo-text {
+    font-size: 0.9rem;
+  }
+  
+  .nav-text {
+    font-size: 0.8rem;
+  }
 }
 
 /* Адаптивность для мобильных устройств */
@@ -94,22 +114,97 @@
     height: auto;
     position: relative;
     box-shadow: none;
+    border-right: none;
     border-bottom: 1px solid #1e293b;
+    padding: 0.75rem;
   }
-  
+
+  .sidebar-header {
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+    justify-content: center;
+  }
+
   .nav {
     flex-direction: row;
     flex-wrap: wrap;
-    padding-top: 0;
+    gap: 0.5rem;
+    justify-content: center;
   }
-  
+
   .nav-link {
-    padding: 0.4rem 0.6rem;
-    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    border-left: none;
+    border-bottom: 3px solid transparent;
   }
-  
+
+  .nav-link.active {
+    border-left: none;
+    border-bottom: 3px solid #3b82f6;
+  }
+
+  .nav-text {
+    display: none;
+  }
+
+  .sidebar-footer {
+    border-top: 1px solid #1e293b;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    display: flex;
+    justify-content: center;
+  }
+
   .logout-btn {
-    margin-top: 0.5rem;
     width: auto;
+    text-align: center;
+    justify-content: center;
   }
+}
+.logo-role { font-size: 0.75rem; color: #64748b; display: block; margin-top: 2px; }
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.75rem 1.2rem 0.75rem;
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 0.8rem;
+}
+
+/* Добавь этот блок для иконки */
+.sidebar-header .logo-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.sidebar-header .logo-icon svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  color: white;
+}
+
+.logo-text-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.logo-text {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.02em;
+}
+
+.logo-role {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
 }
