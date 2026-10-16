@@ -6,7 +6,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/generator")
-@CrossOrigin(origins = "http://localhost:3000")
+
 public class GeneratorController {
 
     private final OrderGeneratorService generatorService;

@@ -7,7 +7,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/dish-ingredients")
-@CrossOrigin(origins = "http://localhost:3000")
+
 public class DishIngredientController {
 
     private final DishIngredientRepository dishIngredientRepository;

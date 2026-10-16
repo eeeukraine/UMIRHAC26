@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/warehouse")
-@CrossOrigin(origins = "http://localhost:3000")
+
 public class WarehouseController {
 
     private final BatchRepository batchRepository;

@@ -15,7 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/deliveries")
-@CrossOrigin(origins = "http://localhost:3000")
 public class DeliveryController {
 
     private final DeliveryRepository deliveryRepository;

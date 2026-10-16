@@ -8,7 +8,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/batches")
-@CrossOrigin(origins = "http://localhost:3000")
 public class BatchController {
 
     private final BatchRepository batchRepository;

@@ -1,0 +1,32 @@
+{
+  "suppliers": [
+    {
+      "id": 1,
+      "name": "ООО «ФудСервис»",
+      "apiKey": "fs-abc123-def456-ghi789",
+      "active": true,
+      "createdAt": "2026-10-01T10:00:00"
+    },
+    {
+      "id": 2,
+      "name": "Мясной двор",
+      "apiKey": "md-xyz789-uvw456-rst123",
+      "active": true,
+      "createdAt": "2026-10-05T14:30:00"
+    },
+    {
+      "id": 3,
+      "name": "Овощи+",
+      "apiKey": "ov-plus111-222-333",
+      "active": true,
+      "createdAt": "2026-10-10T09:15:00"
+    },
+    {
+      "id": 4,
+      "name": "Молочный мир",
+      "apiKey": "mm-dairy999-888-777",
+      "active": true,
+      "createdAt": "2026-10-12T11:45:00"
+    }
+  ]
+}

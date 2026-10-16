@@ -13,7 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/dishes")
-@CrossOrigin(origins = "http://localhost:3000")
+
 public class DishController {
 
     private final DishRepository dishRepository;
