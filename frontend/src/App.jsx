@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import './App.css'
 import Sidebar from './components/Sidebar.jsx'
 
@@ -13,6 +13,7 @@ const getAuthHeaders = () => {
 };
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalProducts: 0,
     lowStock: 0,
@@ -32,26 +33,44 @@ const Dashboard = () => {
 
   const loadDashboardData = async () => {
     setLoading(true);
+    
+    // ✅ 1. ПРОВЕРКА: Если токена нет, не делаем запросы
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('Токен отсутствует. Перенаправление на вход...');
+      navigate('/', { replace: true });
+      return;
+    }
+
     try {
       const headers = getAuthHeaders();
 
-      // Загружаем данные параллельно
-      const [
-        warehouseStatsRes,
-        ordersRes,
-        lowStockRes,
-        expiringRes
-      ] = await Promise.all([
+      const [warehouseStatsRes, ordersRes, lowStockRes, expiringRes] = await Promise.all([
         fetch('http://localhost:8080/api/warehouse/stats', { headers }),
         fetch('http://localhost:8080/api/orders', { headers }),
         fetch('http://localhost:8080/api/warehouse/low-stock', { headers }),
         fetch('http://localhost:8080/api/warehouse/expiring?days=7', { headers })
       ]);
 
+      // ✅ 2. ПРОВЕРКА: Если хоть один запрос вернул ошибку (401/403)
+      if (!warehouseStatsRes.ok || !ordersRes.ok || !lowStockRes.ok || !expiringRes.ok) {
+        if (warehouseStatsRes.status === 401 || warehouseStatsRes.status === 403) {
+          console.error('Сессия истекла или нет доступа');
+          localStorage.clear();
+          navigate('/', { replace: true });
+          return;
+        }
+        throw new Error('Ошибка сервера при загрузке данных');
+      }
+
+      // ✅ 3. Только теперь безопасно вызываем .json()
       const warehouseStats = await warehouseStatsRes.json();
-      const orders = await ordersRes.json();
+      const ordersData = await ordersRes.json();
       const lowStock = await lowStockRes.json();
       const expiring = await expiringRes.json();
+
+      // Гарантируем, что ordersData - это массив (на случай если бэк отдает объект { orders: [...] })
+      const orders = Array.isArray(ordersData) ? ordersData : (ordersData.orders || []);
 
       // Обновляем статистику
       setStats({
@@ -66,15 +85,13 @@ const Dashboard = () => {
       setPendingOrders(orders.filter(o => o.status === 'new' || o.status === 'pending').length);
 
       // Берём топ-3 критических остатка
-      setLowStockItems(lowStock.slice(0, 3));
+      setLowStockItems(Array.isArray(lowStock) ? lowStock.slice(0, 3) : []);
 
       // Берём топ-3 истекающих продукта
-      setExpiringItems(expiring.slice(0, 3));
+      setExpiringItems(Array.isArray(expiring) ? expiring.slice(0, 3) : []);
 
-      // Генерируем последнюю активность (можно потом сделать отдельный endpoint)
+      // Генерируем последнюю активность
       const activity = [];
-      
-      // Добавляем последние заказы
       orders.slice(-2).forEach(order => {
         activity.push({
           type: 'order',
@@ -84,7 +101,6 @@ const Dashboard = () => {
         });
       });
 
-      // Добавляем информацию о низких остатках
       if (lowStock.length > 0) {
         activity.push({
           type: 'warning',
@@ -120,7 +136,6 @@ const Dashboard = () => {
   return (
     <div className="app-layout">
       <Sidebar />
-      
       <main className="dashboard-main">
         <header className="dashboard-header">
           <div className="header-content">
@@ -265,7 +280,6 @@ const Dashboard = () => {
 
         {/* ЗОНЫ ДЕЙСТВИЯ */}
         <section className="action-grid">
-          {/* Критические остатки */}
           <div className="data-panel">
             <div className="panel-header">
               <div className="panel-title-wrapper">
@@ -319,7 +333,6 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Истекающий срок */}
           <div className="data-panel">
             <div className="panel-header">
               <div className="panel-title-wrapper">

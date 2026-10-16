@@ -34,35 +34,7 @@ const Fxod = () => {
         throw new Error('Заполните все поля')
       }
 
-      // === ВРЕМЕННЫЙ МОК ДЛЯ РАЗРАБОТКИ (РАБОТАЕТ БЕЗ БЕКА) ===
-      if (import.meta.env.DEV) {
-        // Имитируем задержку сети для реалистичности (0.8 сек)
-        await new Promise(resolve => setTimeout(resolve, 800))
-
-        if (formData.username === 'admin' && formData.password === '12345') {
-          localStorage.setItem('token', 'dev-token-admin')
-          localStorage.setItem('user', JSON.stringify({ id: 1, name: 'Администратор', role: 'admin', firmId: 1 }))
-          navigate('/dashboard')
-          return
-        }
-        if (formData.username === 'manager' && formData.password === '12345') {
-          localStorage.setItem('token', 'dev-token-manager')
-          localStorage.setItem('user', JSON.stringify({ id: 2, name: 'Менеджер', role: 'manager', firmId: 1 }))
-          navigate('/dashboard')
-          return
-        }
-        if (formData.username === 'worker' && formData.password === '12345') {
-          localStorage.setItem('token', 'dev-token-worker')
-          localStorage.setItem('user', JSON.stringify({ id: 3, name: 'Сотрудник', role: 'worker', firmId: 1 }))
-          navigate('/dashboard')
-          return
-        }
-        
-        throw new Error('Неверный логин или пароль. Используйте: admin / 12345')
-      }
-      // === КОНЕЦ МОКА ===
-
-      // Реальный запрос к бэкенду (сработает, когда друг запустит сервер)
+      // Реальный запрос к бэкенду
       const response = await fetch('http://localhost:8080/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -78,8 +50,9 @@ const Fxod = () => {
         throw new Error(data.error || 'Неверный логин или пароль')
       }
 
+      // Сохраняем токен и данные пользователя
       localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user)) // Убедись, что бек отдает role и firmId
+      localStorage.setItem('user', JSON.stringify(data.user))
       
       if (formData.rememberMe) {
         localStorage.setItem('rememberedUser', formData.username)

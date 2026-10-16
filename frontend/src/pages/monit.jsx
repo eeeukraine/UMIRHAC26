@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import './monit.css'
 import Sidebar from "../components/Sidebar.jsx"
-import { Search } from 'lucide-react'
+
+// SVG иконка поиска вместо lucide-react
+const SearchIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="11" cy="11" r="8"></circle>
+    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+  </svg>
+)
 
 // 🌟 Вспомогательная функция: добавляет токен ко всем запросам
 const getAuthHeaders = () => {
@@ -78,7 +85,6 @@ const Monit = () => {
   const [selectedCategory, setSelectedCategory] = useState('Все')
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
 
-  // 🔥 ТЕПЕРЬ ВСЕ ВКЛАДКИ ИЗНАЧАЛЬНО ЗАКРЫТЫ
   const [activeViews, setActiveViews] = useState({
     inventory: false,
     deliveries: false,
@@ -157,14 +163,11 @@ const Monit = () => {
     }
   }
 
-  // 🔥 ЛОГИКА: ОТКРЫВАЕТСЯ ТОЛЬКО ОДНА ВКЛАДКА
   const toggleView = (key) => {
     setActiveViews(prev => {
       if (prev[key]) {
-        // Если уже открыта — закрываем её
         return { ...prev, [key]: false }
       }
-      // Иначе закрываем ВСЕ, и открываем только ту, на которую кликнули
       return {
         inventory: key === 'inventory',
         deliveries: key === 'deliveries',
@@ -309,7 +312,6 @@ const Monit = () => {
           {activeCount > 0 ? (
             <div className="dynamic-lists-grid" style={{ gridTemplateColumns: `repeat(${activeCount}, minmax(0, 1fr))` }}>
               
-              {/* 1. УМНАЯ ТАБЛИЦА ПРОДУКТОВ */}
               {activeViews.inventory && (
                 <div className="card list-panel" style={{ gridColumn: '1 / -1' }}>
                   <div className="card-header">
@@ -323,7 +325,7 @@ const Monit = () => {
                   <div className="card-body">
                     <div className="table-controls">
                       <div className="search-box-table">
-                        <Search size={18} />
+                        <SearchIcon />
                         <input 
                           type="text" 
                           placeholder="Поиск по названию..." 
@@ -396,7 +398,6 @@ const Monit = () => {
                 </div>
               )}
 
-              {/* 2. Требуется поставка */}
               {activeViews.deliveries && (
                 <div className="card list-panel">
                   <div className="card-header card-header-red">
@@ -426,7 +427,6 @@ const Monit = () => {
                 </div>
               )}
 
-              {/* 3. Истекают в течение 7 дней */}
               {activeViews.expiring && (
                 <div className="card list-panel">
                   <div className="card-header card-header-amber">
@@ -451,7 +451,6 @@ const Monit = () => {
                 </div>
               )}
 
-              {/* 4. Просроченные партии */}
               {activeViews.expiring && expiredBatches.length > 0 && (
                 <div className="card list-panel">
                   <div className="card-header" style={{ background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)', borderBottom: '2px solid #ef4444' }}>
@@ -474,7 +473,6 @@ const Monit = () => {
                 </div>
               )}
 
-              {/* 5. Рецепты под угрозой */}
               {activeViews.recipes && (
                 <div className="card list-panel">
                   <div className="card-header card-header-purple">

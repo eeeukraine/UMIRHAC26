@@ -2,11 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react'
 import './bluda.css'
 import Sidebar from "../components/Sidebar.jsx"
 import { fetchDishes, fetchCategories } from './api' 
-import { Plus, X, Flame, AlertCircle } from 'lucide-react'
 
 // ==========================================
 // 🚨 ВРЕМЕННЫЕ МОК-ДАННЫЕ ДЛЯ ТЕСТИРОВАНИЯ
-// Чтобы удалить: поставь USE_MOCK_DATA = false и удали массивы ниже
 // ==========================================
 const USE_MOCK_DATA = true
 
@@ -26,9 +24,9 @@ const MOCK_DISHES = [
     prepTimeMinutes: 25,
     calories: 650,
     ingredients: [
-      { name: 'Говядина (Рибай)', quantity: 300, unit: 'г', daysToExpire: 1, stockQty: 45 }, // 🔥 Критично: 1 день, много на складе
-      { name: 'Спаржа', quantity: 150, unit: 'г', daysToExpire: 2, stockQty: 30 },          // 🔥 Критично: 2 дня
-      { name: 'Масло сливочное', quantity: 20, unit: 'г', daysToExpire: 15, stockQty: 50 }  // ОК
+      { name: 'Говядина (Рибай)', quantity: 300, unit: 'г', daysToExpire: 1, stockQty: 45 },
+      { name: 'Спаржа', quantity: 150, unit: 'г', daysToExpire: 2, stockQty: 30 },
+      { name: 'Масло сливочное', quantity: 20, unit: 'г', daysToExpire: 15, stockQty: 50 }
     ]
   },
   {
@@ -39,7 +37,7 @@ const MOCK_DISHES = [
     prepTimeMinutes: 15,
     calories: 320,
     ingredients: [
-      { name: 'Салат Айсберг', quantity: 100, unit: 'г', daysToExpire: -1, stockQty: 15 }, // 🚨 УЖЕ ПРОСРОЧЕН!
+      { name: 'Салат Айсберг', quantity: 100, unit: 'г', daysToExpire: -1, stockQty: 15 },
       { name: 'Куриное филе', quantity: 120, unit: 'г', daysToExpire: 4, stockQty: 40 },
       { name: 'Пармезан', quantity: 30, unit: 'г', daysToExpire: 20, stockQty: 10 }
     ]
@@ -52,7 +50,7 @@ const MOCK_DISHES = [
     prepTimeMinutes: 10,
     calories: 450,
     ingredients: [
-      { name: 'Маскарпоне', quantity: 150, unit: 'г', daysToExpire: 12, stockQty: 20 }, // ОК, свежее
+      { name: 'Маскарпоне', quantity: 150, unit: 'г', daysToExpire: 12, stockQty: 20 },
       { name: 'Печенье Савоярди', quantity: 100, unit: 'г', daysToExpire: 30, stockQty: 50 }
     ]
   },
@@ -64,8 +62,8 @@ const MOCK_DISHES = [
     prepTimeMinutes: 5,
     calories: 120,
     ingredients: [
-      { name: 'Лимон', quantity: 50, unit: 'г', daysToExpire: 3, stockQty: 60 },  // 🔥 На грани, но много на складе
-      { name: 'Мята', quantity: 5, unit: 'г', daysToExpire: 2, stockQty: 10 }     // 🔥 Критично
+      { name: 'Лимон', quantity: 50, unit: 'г', daysToExpire: 3, stockQty: 60 },
+      { name: 'Мята', quantity: 5, unit: 'г', daysToExpire: 2, stockQty: 10 }
     ]
   },
   {
@@ -82,9 +80,35 @@ const MOCK_DISHES = [
     ]
   }
 ]
-// ==========================================
-// КОНЕЦ МОК-ДАННЫХ
-// ==========================================
+
+// SVG иконки вместо lucide-react
+const PlusIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="12" y1="5" x2="12" y2="19"></line>
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
+)
+
+const XIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="18" y1="6" x2="6" y2="18"></line>
+    <line x1="6" y1="6" x2="18" y2="18"></line>
+  </svg>
+)
+
+const FlameIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
+  </svg>
+)
+
+const AlertCircleIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="12" y1="8" x2="12" y2="12"></line>
+    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+  </svg>
+)
 
 const Bluda = () => {
   const [searchQuery, setSearchQuery] = useState('')
@@ -94,23 +118,20 @@ const Bluda = () => {
   const [filterCategories, setFilterCategories] = useState(['Все'])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Состояние для ручного добавления в горячие предложения
-  const [manualHotOffers, setManualHotOffers] = useState([]) // Массив ID блюд
+  const [manualHotOffers, setManualHotOffers] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-    useEffect(() => {
+  useEffect(() => {
     const loadData = async () => {
       try {
         let dishesData, categoriesData
 
         if (USE_MOCK_DATA) {
-          // 🟢 ИСПОЛЬЗУЕМ МОК-ДАННЫЕ
-          await new Promise(resolve => setTimeout(resolve, 600)) // Имитация задержки сети
+          await new Promise(resolve => setTimeout(resolve, 600))
           dishesData = MOCK_DISHES
           categoriesData = MOCK_CATEGORIES
-          console.log('🟢 Загружены МОК-данные для тестирования')
+          console.log(' Загружены МОК-данные для тестирования')
         } else {
-          // 🔵 ИСПОЛЬЗУЕМ РЕАЛЬНЫЙ БЕКЕНД
           const [fetchedDishes, fetchedCategories] = await Promise.all([
             fetchDishes(),
             fetchCategories()
@@ -125,7 +146,6 @@ const Bluda = () => {
 
           const formattedIngredients = (dish.ingredients && dish.ingredients.length > 0)
             ? dish.ingredients.map(ing => {
-                // Если данные пришли с бека без daysToExpire/stockQty, ставим заглушки, чтобы не упало
                 const days = ing.daysToExpire !== undefined ? ing.daysToExpire : Math.floor(Math.random() * 10)
                 const stock = ing.stockQty !== undefined ? ing.stockQty : Math.floor(Math.random() * 50) + 5
                 
@@ -161,24 +181,21 @@ const Bluda = () => {
     loadData()
   }, [])
 
-  // 🔥 АЛГОРИТМ РАСЧЕТА ПРИОРИТЕТА ГОРЯЧИХ ПРЕДЛОЖЕНИЙ
   const hotOffers = useMemo(() => {
     const today = new Date()
     
-    // 1. Считаем score для каждого блюда
     const scoredDishes = dishes.map(dish => {
       let score = 0
       let criticalIngredients = []
 
       dish.ingredients.forEach(ing => {
-        // Если до списания <= 3 дней, даем высокие очки
         if (ing.daysToExpire <= 3 && ing.daysToExpire >= 0) {
-          const urgency = (4 - ing.daysToExpire) * 10 // 10, 20, 30, 40 очков
-          const stockWeight = ing.stockQty > 20 ? 1.5 : 1 // Бонус, если на складе много
+          const urgency = (4 - ing.daysToExpire) * 10
+          const stockWeight = ing.stockQty > 20 ? 1.5 : 1
           score += urgency * stockWeight
           criticalIngredients.push(ing.name)
         } else if (ing.daysToExpire < 0) {
-          score += 100 // Критически: уже просрочено!
+          score += 100
           criticalIngredients.push(ing.name)
         }
       })
@@ -186,7 +203,6 @@ const Bluda = () => {
       return { ...dish, score, criticalIngredients }
     })
 
-    // 2. Сортируем: сначала ручные добавления, потом по убыванию score
     return scoredDishes
       .filter(d => d.score > 0 || manualHotOffers.includes(d.id))
       .sort((a, b) => {
@@ -194,7 +210,7 @@ const Bluda = () => {
         const bIsManual = manualHotOffers.includes(b.id) ? 1000 : 0
         return (b.score + bIsManual) - (a.score + aIsManual)
       })
-      .slice(0, 6) // Показываем топ-6
+      .slice(0, 6)
   }, [dishes, manualHotOffers])
 
   const filteredDishes = useMemo(() => {
@@ -271,18 +287,16 @@ const Bluda = () => {
               </p>
             </div>
             
-            {/* Кнопка ручного добавления */}
             <button className="add-hot-offer-btn" onClick={() => setIsModalOpen(true)}>
-              <Plus size={20} />
+              <PlusIcon />
               <span>Добавить в предложение</span>
             </button>
           </div>
 
-          {/* 🔥 БЛОК ГОРЯЧИХ ПРЕДЛОЖЕНИЙ */}
           {hotOffers.length > 0 && (
             <div className="hot-offers-section">
               <div className="hot-offers-header">
-                <Flame className="fire-icon" size={24} />
+                <FlameIcon />
                 <h3>Горячие предложения</h3>
                 <span className="hot-offers-subtitle">
                   Рекомендуется к продаже для списания продуктов с истекающим сроком
@@ -301,7 +315,7 @@ const Bluda = () => {
                     </div>
                     <h4 className="hot-dish-name">{dish.name}</h4>
                     <div className="hot-ingredients-warning">
-                      <AlertCircle size={14} />
+                      <AlertCircleIcon />
                       <span>
                         {dish.criticalIngredients.length > 0 
                           ? `Критично: ${dish.criticalIngredients.slice(0, 2).join(', ')}${dish.criticalIngredients.length > 2 ? '...' : ''}` 
@@ -313,7 +327,7 @@ const Bluda = () => {
                       onClick={() => toggleManualHotOffer(dish.id)}
                       title={manualHotOffers.includes(dish.id) ? "Убрать из ручных" : "Закрепить вручную"}
                     >
-                      {manualHotOffers.includes(dish.id) ? <X size={16} /> : <Plus size={16} />}
+                      {manualHotOffers.includes(dish.id) ? <XIcon /> : <PlusIcon />}
                     </button>
                   </div>
                 ))}
@@ -413,14 +427,13 @@ const Bluda = () => {
         </div>
       </main>
 
-      {/* 🔥 МОДАЛЬНОЕ ОКНО ДЛЯ РУЧНОГО ДОБАВЛЕНИЯ */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Добавить в горячие предложения</h3>
               <button className="modal-close" onClick={() => setIsModalOpen(false)}>
-                <X size={20} />
+                <XIcon />
               </button>
             </div>
             <div className="modal-body">
@@ -428,7 +441,7 @@ const Bluda = () => {
                 type="text" 
                 placeholder="Поиск блюда..." 
                 className="modal-search"
-                onChange={(e) => setSearchQuery(e.target.value)} // Используем тот же стейт для простоты
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
               <div className="modal-dishes-list">
                 {dishes.filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase())).map(dish => (
