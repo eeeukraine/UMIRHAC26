@@ -163,3 +163,49 @@
   }
 }
 .logo-role { font-size: 0.75rem; color: #64748b; display: block; margin-top: 2px; }
+/* Иконка логотипа (куб) */
+.sidebar-header .logo-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.sidebar-header .logo-icon svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  color: white;
+}
+
+/* Иконки пунктов меню */
+.nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: currentColor; /* Наследует цвет от родителя */
+  transition: color 0.2s;
+}
+
+/* Для активного пункта иконка тоже становится ярче */
+.nav-link.active .nav-icon {
+  color: #60a5fa;
+}
+
+.nav-link:hover .nav-icon {
+  color: #f1f5f9;
+}
+
+/* Для кнопки выхода */
+.logout-btn .nav-icon {
+  color: #f87171;
+}
+
+.logout-btn:hover .nav-icon {
+  color: #ef4444;
+}
