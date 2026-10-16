@@ -8,7 +8,7 @@ import { Plus, X, Flame, AlertCircle } from 'lucide-react'
 // 🚨 ВРЕМЕННЫЕ МОК-ДАННЫЕ ДЛЯ ТЕСТИРОВАНИЯ
 // Чтобы удалить: поставь USE_MOCK_DATA = false и удали массивы ниже
 // ==========================================
-const USE_MOCK_DATA = false
+const USE_MOCK_DATA = true
 
 const MOCK_CATEGORIES = [
   { id: 1, name: 'Горячее' },
