@@ -52,8 +52,7 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
         )
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authenticationProvider(authenticationProvider())
-        // .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)  ← ЗАКОММЕНТИРУЙ
-        ;
+        .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
 }
