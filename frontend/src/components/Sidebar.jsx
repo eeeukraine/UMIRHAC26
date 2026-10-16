@@ -30,7 +30,7 @@ const Sidebar = () => {
     { name: 'Заказы', icon: ShoppingCart, path: '/priemzk', permissionKey: 'priemzk' },
     { name: 'Блюда', icon: UtensilsCrossed, path: '/bluda', permissionKey: 'bluda' },
     { name: 'Склад', icon: Package, path: '/monit', permissionKey: 'monit' },
-    { name: 'Поставки', icon: Truck, path: '/priemps', permissionKey: 'prieemps' },
+    { name: 'Поставки', icon: Truck, path: '/priemps', permissionKey: 'priemps' },
   ];
 
   const visibleMenuItems = menuItems.filter(item => 

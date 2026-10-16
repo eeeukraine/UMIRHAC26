@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import './spisaniya.css'
 import Sidebar from "../components/Sidebar.jsx"
+import RefreshButton from '../components/RefreshButton.jsx'
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -10,21 +11,14 @@ const getAuthHeaders = () => {
   };
 };
 
-// 🛡️ СЕРЕБРЯНАЯ ПУЛЯ: Получает локальную дату в формате YYYY-MM-DD без сдвигов UTC
 const getLocalTodayStr = () => {
-  return new Date().toLocaleDateString('sv-SE'); // 'sv-SE' всегда возвращает YYYY-MM-DD
+  return new Date().toLocaleDateString('sv-SE');
 };
 
-// 🛡️ СЕРЕБРЯНАЯ ПУЛЯ: Проверяет, просрочена ли дата (включая сегодня)
 const isExpired = (dateStr) => {
   if (!dateStr) return false;
-  // Берём только первые 10 символов (YYYY-MM-DD), отбрасывая время, если оно есть
   const cleanDate = String(dateStr).substring(0, 10);
   const today = getLocalTodayStr();
-  
-  // 🔍 ОТЛАДКА: Раскомментируй строку ниже, чтобы увидеть в консоли, что сравнивается
-  // console.log(`Сравниваем: ${cleanDate} <= ${today} ? Результат: ${cleanDate <= today}`);
-  
   return cleanDate <= today;
 };
 
@@ -37,6 +31,15 @@ const Spisaniya = () => {
   const [productsData, setProductsData] = useState([])
   const [writeOffHistory, setWriteOffHistory] = useState([])
   const [allBatches, setAllBatches] = useState([])
+
+  // ✅ НОВОЕ: Состояние для модального окна списания
+  const [isWriteOffModalOpen, setIsWriteOffModalOpen] = useState(false)
+  const [selectedBatch, setSelectedBatch] = useState(null)
+  const [writeOffReason, setWriteOffReason] = useState('')
+  const [writeOffQuantity, setWriteOffQuantity] = useState('')
+  const [writeOffLoading, setWriteOffLoading] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     loadData()
@@ -76,7 +79,6 @@ const Spisaniya = () => {
         }))
       )
       
-      // ✅ ИСПОЛЬЗУЕМ НАШУ НАДЁЖНУЮ ФУНКЦИЮ isExpired
       const generatedHistory = expiringBatches
         .filter(batch => isExpired(batch.expirationDate))
         .map((batch, idx) => ({
@@ -106,6 +108,98 @@ const Spisaniya = () => {
     setExpandedCard(expandedCard === cardName ? null : cardName)
   }
 
+  // ✅ НОВОЕ: Открыть модальное окно списания
+  const openWriteOffModal = (batch) => {
+    setSelectedBatch(batch)
+    setWriteOffQuantity(batch.quantity.toString())
+    setWriteOffReason('')
+    setIsWriteOffModalOpen(true)
+  }
+
+  // ✅ НОВОЕ: Подтвердить списание
+  const confirmWriteOff = async () => {
+    if (!writeOffReason.trim()) {
+      setError('Укажите причину списания')
+      setTimeout(() => setError(''), 3000)
+      return
+    }
+
+    const quantity = parseFloat(writeOffQuantity)
+    if (isNaN(quantity) || quantity <= 0 || quantity > selectedBatch.quantity) {
+      setError(`Неверное количество (максимум: ${selectedBatch.quantity})`)
+      setTimeout(() => setError(''), 3000)
+      return
+    }
+
+    setWriteOffLoading(true)
+    setError('')
+
+    try {
+      // ✅ ОТПРАВЛЯЕМ ЗАПРОС НА БЕКЕНД
+      const response = await fetch('http://localhost:8080/api/warehouse/write-off', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          batchId: selectedBatch.id,
+          quantity: quantity,
+          reason: writeOffReason,
+          type: 'manual'
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Ошибка при списании')
+      }
+
+      // ✅ ДОБАВЛЯЕМ В ИСТОРИЮ СПИСАНИЙ
+      const newWriteOff = {
+        id: writeOffHistory.length + 1,
+        type: 'manual',
+        productName: selectedBatch.productName,
+        batchId: selectedBatch.id,
+        quantity: quantity,
+        unit: selectedBatch.productUnit,
+        reason: writeOffReason,
+        date: new Date().toLocaleString('ru-RU'),
+        status: 'completed'
+      }
+
+      setWriteOffHistory(prev => [newWriteOff, ...prev])
+
+      // ✅ УДАЛЯЕМ ИЛИ УМЕНЬШАЕМ КОЛИЧЕСТВО ПАРТИИ
+      if (quantity >= selectedBatch.quantity) {
+        // Полное списание - удаляем партию
+        setAllBatches(prev => prev.filter(b => b.id !== selectedBatch.id))
+        setProductsData(prev => prev.map(product => ({
+          ...product,
+          batches: product.batches.filter(b => b.id !== selectedBatch.id)
+        })))
+      } else {
+        // Частичное списание - уменьшаем количество
+        setAllBatches(prev => prev.map(b => 
+          b.id === selectedBatch.id ? { ...b, quantity: b.quantity - quantity } : b
+        ))
+        setProductsData(prev => prev.map(product => ({
+          ...product,
+          batches: product.batches.map(b => 
+            b.id === selectedBatch.id ? { ...b, quantity: b.quantity - quantity } : b
+          )
+        })))
+      }
+
+      setSuccessMessage(`✅ ${selectedBatch.productName} успешно списан (${quantity} ${selectedBatch.productUnit})`)
+      setIsWriteOffModalOpen(false)
+      setTimeout(() => setSuccessMessage(''), 3000)
+
+    } catch (err) {
+      setError('❌ ' + err.message)
+      setTimeout(() => setError(''), 5000)
+    } finally {
+      setWriteOffLoading(false)
+    }
+  }
+
   const filteredHistory = useMemo(() => {
     let result = writeOffHistory
     if (filter !== 'all') result = result.filter(item => item.type === filter)
@@ -119,13 +213,11 @@ const Spisaniya = () => {
   }, [filter, searchQuery, writeOffHistory])
 
   const stats = useMemo(() => {
-    // ✅ ИСПОЛЬЗУЕМ НАШУ НАДЁЖНУЮ ФУНКЦИЮ isExpired
     const expiredBatches = allBatches.filter(b => isExpired(b.expirationDate))
     
     const expiringSoon = allBatches.filter(b => {
       const expDate = new Date(b.expirationDate);
       const today = new Date();
-      // Сбрасываем время для корректного сравнения дней
       expDate.setHours(0,0,0,0);
       today.setHours(0,0,0,0);
       const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
@@ -166,7 +258,6 @@ const Spisaniya = () => {
       let filteredBatches = allBatches;
       
       if (expandedCard === 'expired') {
-        // ✅ ИСПОЛЬЗУЕМ НАШУ НАДЁЖНУЮ ФУНКЦИЮ isExpired
         filteredBatches = allBatches.filter(b => isExpired(b.expirationDate));
       } else if (expandedCard === 'expiring') {
         filteredBatches = allBatches.filter(b => {
@@ -190,6 +281,8 @@ const Spisaniya = () => {
             <div className="batches-list">
               {productBatches.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate)).map((batch, idx) => {
                 const status = getExpirationStatus(batch.expirationDate);
+                const isExpiredBatch = isExpired(batch.expirationDate);
+                
                 return (
                   <div key={batch.id} className={`batch-item ${idx === 0 && expandedCard === 'batches' ? 'fifo-first' : ''}`}>
                     {idx === 0 && expandedCard === 'batches' && <span className="fifo-badge">FIFO</span>}
@@ -208,6 +301,20 @@ const Spisaniya = () => {
                       <span className="expiration-date">{new Date(batch.expirationDate).toLocaleDateString('ru-RU')}</span>
                       <span className="expiration-days" style={{ color: status.color }}>{status.label}</span>
                     </div>
+                    
+                    {/* ✅ НОВОЕ: Кнопка списания для просроченных партий */}
+                    {isExpiredBatch && (
+                      <button 
+                        className="write-off-btn"
+                        onClick={() => openWriteOffModal(batch)}
+                        title="Списать товар"
+                      >
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span>Списать</span>
+                      </button>
+                    )}
                   </div>
                 )
               })}
@@ -414,6 +521,121 @@ const Spisaniya = () => {
           )}
         </div>
       </main>
+
+      {/* ✅ НОВОЕ: Модальное окно списания */}
+      {isWriteOffModalOpen && selectedBatch && (
+        <div className="modal-overlay" onClick={() => setIsWriteOffModalOpen(false)}>
+          <div className="modal-content write-off-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Списание товара</h2>
+              <button className="modal-close" onClick={() => setIsWriteOffModalOpen(false)}>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="write-off-info">
+                <div className="info-row">
+                  <span className="info-label">Продукт:</span>
+                  <span className="info-value">{selectedBatch.productName}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Партия:</span>
+                  <span className="info-value">#{selectedBatch.batchNumber || selectedBatch.id}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Срок годности:</span>
+                  <span className="info-value expired-date">
+                    {new Date(selectedBatch.expirationDate).toLocaleDateString('ru-RU')}
+                  </span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Доступно для списания:</span>
+                  <span className="info-value">{selectedBatch.quantity} {selectedBatch.productUnit}</span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Количество для списания *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={selectedBatch.quantity}
+                  value={writeOffQuantity}
+                  onChange={(e) => setWriteOffQuantity(e.target.value)}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Причина списания *</label>
+                <textarea
+                  value={writeOffReason}
+                  onChange={(e) => setWriteOffReason(e.target.value)}
+                  className="form-textarea"
+                  placeholder="Например: истек срок годности, повреждена упаковка..."
+                  rows="3"
+                  required
+                />
+              </div>
+
+              {error && (
+                <div className="notification error">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button 
+                  className="btn-cancel" 
+                  onClick={() => setIsWriteOffModalOpen(false)}
+                  disabled={writeOffLoading}
+                >
+                  Отмена
+                </button>
+                <button 
+                  className="btn-confirm-write-off" 
+                  onClick={confirmWriteOff}
+                  disabled={writeOffLoading}
+                >
+                  {writeOffLoading ? (
+                    <>
+                      <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Списание...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Списать</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Уведомления об успехе */}
+      {successMessage && (
+        <div className="notification success">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{successMessage}</span>
+        </div>
+      )}
     </div>
   )
 }

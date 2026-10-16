@@ -123,7 +123,7 @@ const NewOrder = () => {
         position: 'absolute',
         top: 0, left: 0, right: 0, bottom: 0,
         backgroundImage: `url(${bgImage})`,
-        filter: 'blur(2px)',
+        filter: 'blur(12px)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -181,11 +181,11 @@ const NewOrder = () => {
     padding: '18px',
     borderRadius: '16px',
     boxShadow: isStopped 
-      ? '0 4px 15px rgba(244, 67, 54, 0.4)' // 🔴 Красное свечение
-      : '0 8px 32px rgba(0, 0, 0, 0.9)', // ⚪ Мягкая тень
+      ? '0 4px 15px rgba(244, 67, 54, 0.7)' // 🔴 Красное свечение
+      : '0 8px 32px rgba(0, 0, 0, 0.19)', // ⚪ Мягкая тень
     backdropFilter: isStopped
-      ? 'blur(8px)' // 🔴 Меньше размытие для недоступных
-      : 'blur(25px)', // ⚪ СИЛЬНОЕ размытие для стекла
+      ? 'blur(25px)' // 🔴 Меньше размытие для недоступных
+      : 'blur(252px)', // ⚪ СИЛЬНОЕ размытие для стекла
     WebkitBackdropFilter: isStopped
       ? 'blur(8px)'
       : 'blur(25px)',
@@ -202,14 +202,14 @@ const NewOrder = () => {
     if (!isStopped) {
       e.currentTarget.style.transform = 'translateY(-4px)';
       e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.2)';
-      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+      e.currentTarget.style.background = 'rgba(255, 255, 255, 1.9)';
     }
   }}
   onMouseLeave={(e) => {
     if (!isStopped) {
       e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.15)';
-      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.5)';
+      e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.35)';
+      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
     }
   }}
 >
@@ -267,7 +267,7 @@ const NewOrder = () => {
         {/* ПРАВАЯ ЧАСТЬ: КОРЗИНА */}
         <div style={{ 
           width: '360px', 
-          backgroundColor: 'rgba(255, 255, 255, 0.8)', // Почти непрозрачная
+          backgroundColor: 'rgba(255, 255, 255, 1)', // Почти непрозрачная
           padding: '25px', 
           display: 'flex', 
           flexDirection: 'column',
@@ -319,7 +319,7 @@ const NewOrder = () => {
                   alignItems: 'center', 
                   padding: '12px', 
                   marginBottom: '10px',
-                  background: 'rgba(255, 255, 255, 0.9)',
+                  background: 'rgba(255, 255, 255, 1)',
                   borderRadius: '10px'
                 }}>
                   <div style={{ flex: 1 }}>

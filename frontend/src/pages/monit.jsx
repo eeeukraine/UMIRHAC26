@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import './monit.css'
 import Sidebar from "../components/Sidebar.jsx"
+import RefreshButton from '../components/RefreshButton.jsx' // ✅ ДОБАВЛЕН ИМПОРТ
 
 // SVG иконка поиска вместо lucide-react
 const SearchIcon = () => (
@@ -254,17 +255,24 @@ const Monit = () => {
       <Sidebar />
       <main className="supply-content">
         <div className="page-wrapper">
-          <div className="page-header">
-            <h1 className="page-title">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              Мониторинг остатков
-            </h1>
-            <p className="page-subtitle">
-              Нажмите на карточку статистики, чтобы открыть список (открывается только один за раз)
-              {lastUpdate && <span className="last-update"> • Обновлено: {lastUpdate}</span>}
-            </p>
+          
+          {/* ✅ ОБНОВЛЕННЫЙ ЗАГОЛОВОК С КНОПКОЙ */}
+          <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div className="header-left">
+              <h1 className="page-title">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Мониторинг остатков
+              </h1>
+              <p className="page-subtitle">
+                Нажмите на карточку статистики, чтобы открыть список (открывается только один за раз)
+                {lastUpdate && <span className="last-update"> • Обновлено: {lastUpdate}</span>}
+              </p>
+            </div>
+            
+            {/* ✅ КНОПКА ОБНОВЛЕНИЯ */}
+            <RefreshButton onRefresh={loadMonitoringData} label="Обновить данные" />
           </div>
 
           <div className="stats-grid">

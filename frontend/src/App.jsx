@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import './App.css'
 import Sidebar from './components/Sidebar.jsx'
+import RefreshButton from './components/RefreshButton.jsx'
 
 // 🌟 Вспомогательная функция для авторизации
 const getAuthHeaders = () => {
@@ -34,7 +35,6 @@ const Dashboard = () => {
   const loadDashboardData = async () => {
     setLoading(true);
     
-    // ✅ 1. ПРОВЕРКА: Если токена нет, не делаем запросы
     const token = localStorage.getItem('token');
     if (!token) {
       console.warn('Токен отсутствует. Перенаправление на вход...');
@@ -52,7 +52,6 @@ const Dashboard = () => {
         fetch('http://localhost:8080/api/warehouse/expiring?days=7', { headers })
       ]);
 
-      // ✅ 2. ПРОВЕРКА: Если хоть один запрос вернул ошибку (401/403)
       if (!warehouseStatsRes.ok || !ordersRes.ok || !lowStockRes.ok || !expiringRes.ok) {
         if (warehouseStatsRes.status === 401 || warehouseStatsRes.status === 403) {
           console.error('Сессия истекла или нет доступа');
@@ -63,16 +62,13 @@ const Dashboard = () => {
         throw new Error('Ошибка сервера при загрузке данных');
       }
 
-      // ✅ 3. Только теперь безопасно вызываем .json()
       const warehouseStats = await warehouseStatsRes.json();
       const ordersData = await ordersRes.json();
       const lowStock = await lowStockRes.json();
       const expiring = await expiringRes.json();
 
-      // Гарантируем, что ordersData - это массив (на случай если бэк отдает объект { orders: [...] })
       const orders = Array.isArray(ordersData) ? ordersData : (ordersData.orders || []);
 
-      // Обновляем статистику
       setStats({
         totalProducts: warehouseStats.totalProducts || 0,
         lowStock: warehouseStats.lowStock || 0,
@@ -80,17 +76,11 @@ const Dashboard = () => {
         recipesAtRisk: warehouseStats.recipesAtRisk || 0
       });
 
-      // Считаем заказы
       setOrdersCount(orders.length);
       setPendingOrders(orders.filter(o => o.status === 'new' || o.status === 'pending').length);
-
-      // Берём топ-3 критических остатка
       setLowStockItems(Array.isArray(lowStock) ? lowStock.slice(0, 3) : []);
-
-      // Берём топ-3 истекающих продукта
       setExpiringItems(Array.isArray(expiring) ? expiring.slice(0, 3) : []);
 
-      // Генерируем последнюю активность
       const activity = [];
       orders.slice(-2).forEach(order => {
         activity.push({
@@ -119,6 +109,11 @@ const Dashboard = () => {
     }
   };
 
+  // ✅ ИСПРАВЛЕНО: Функция обновления теперь ВНУТРИ компонента
+  const handleRefresh = async () => {
+    await loadDashboardData();
+  };
+
   if (loading) {
     return (
       <div className="app-layout">
@@ -143,7 +138,11 @@ const Dashboard = () => {
               <span className="title-gradient">Обзор системы</span>
             </h1>
           </div>
+          
+          {/* ✅ ИСПРАВЛЕНО: Добавлена кнопка обновления в header-actions */}
           <div className="header-actions">
+            <RefreshButton onRefresh={handleRefresh} label="Обновить данные" />
+            
             <div className="date-badge">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>

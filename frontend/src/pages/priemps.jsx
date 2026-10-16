@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './priemps.css';
 import Sidebar from "../components/Sidebar.jsx";
+import RefreshButton from '../components/RefreshButton.jsx'; // ✅ ДОБАВЛЕН ИМПОРТ
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -180,7 +181,6 @@ const SupplyReception = () => {
           </div>
           <div className="delivery-item-details">
             <span>📅 {d.date || new Date(d.createdAt).toLocaleDateString('ru-RU')}</span>
-            {/* ✅ ИСПРАВЛЕНО: проверяем itemsCount (из @JsonProperty) или totalItems */}
             <span>📦 {d.itemsCount || d.totalItems || d.items?.length || 1} позиций</span>
             {d.totalAmount > 0 && <span>💵 {d.totalAmount.toFixed(2)} ₽</span>}
           </div>
@@ -283,14 +283,21 @@ const SupplyReception = () => {
       <Sidebar />
       <main className="supply-content">
         <div className="supply-container">
-          <div className="supply-header">
-            <h1 className="supply-title">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Управление поставками
-            </h1>
-            <p className="supply-subtitle">Одобрение запросов от поставщиков и регистрация ручных поставок</p>
+          
+          {/* ✅ ОБНОВЛЕННЫЙ ЗАГОЛОВОК С КНОПКОЙ */}
+          <div className="supply-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div className="header-left">
+              <h1 className="supply-title">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Управление поставками
+              </h1>
+              <p className="supply-subtitle">Одобрение запросов от поставщиков и регистрация ручных поставок</p>
+            </div>
+            
+            {/* ✅ КНОПКА ОБНОВЛЕНИЯ */}
+            <RefreshButton onRefresh={loadData} label="Обновить данные" />
           </div>
           
           <div className="supply-grid">

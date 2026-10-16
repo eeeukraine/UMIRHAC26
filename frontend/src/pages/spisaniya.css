@@ -381,3 +381,227 @@
   .writeoff-item { flex-direction: column; align-items: flex-start; }
   .writeoff-quantity { align-items: flex-start; flex-direction: row; gap: 0.5rem; }
 }
+
+/* ===== КНОПКА СПИСАНИЯ ===== */
+.write-off-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: linear-gradient(135deg, #ef4444, #f43f5e);
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  white-space: nowrap;
+}
+
+.write-off-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+.write-off-btn:active {
+  transform: translateY(0);
+}
+
+.write-off-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ===== МОДАЛЬНОЕ ОКНО СПИСАНИЯ ===== */
+.write-off-modal {
+  max-width: 500px;
+  width: 90%;
+}
+
+.write-off-info {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 2px solid #fecaca;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.1);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.info-value {
+  font-size: 0.95rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.expired-date {
+  color: #ef4444;
+  font-weight: 800;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+  color: #0f172a;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-confirm-write-off {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #ef4444, #f43f5e);
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+.btn-confirm-write-off:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+}
+
+.btn-confirm-write-off:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-confirm-write-off svg {
+  width: 18px;
+  height: 18px;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ===== УВЕДОМЛЕНИЯ ===== */
+.notification {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-radius: 0.875rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideInRight 0.3s ease;
+}
+
+.notification.success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+.notification.error {
+  background: linear-gradient(135deg, #ef4444, #f43f5e);
+  color: white;
+}
+
+.notification svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
